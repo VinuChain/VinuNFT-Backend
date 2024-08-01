@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
 
+import "./NFTCommissions.sol";
 
 contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
@@ -44,7 +45,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     mapping(uint256 => mapping(uint256 => Listing)) public listings;
     mapping(uint256 => uint256) public listingCount;
 
-    constructor(address _commissionAccount) ZangNFTCommissions(_commissionAccount) {
+    constructor(address _commissionAccount) NFTCommissions(_commissionAccount) {
 
     }
 
