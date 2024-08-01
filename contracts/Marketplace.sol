@@ -4,8 +4,13 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import "@openzeppelin/contracts/interfaces/IERC165.sol";
 
-contract Marketplace is Pausable, Ownable, ZangNFTCommissions, ReentrancyGuard {
+
+contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
+    bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
+
     event TokenListed(
         uint256 indexed _tokenId,
         address indexed _seller,
@@ -130,7 +135,12 @@ contract Marketplace is Pausable, Ownable, ZangNFTCommissions, ReentrancyGuard {
 
         uint256 remainder = value - platformFee;
 
-        (address creator, uint256 creatorFee) = nftAddress.royaltyInfo(_tokenId, remainder);
+        address creator;
+        uint256 creatorFee;
+
+        if (nftAddress.supportsInterface(_INTERFACE_ID_ERC2981)) {
+            (creator, creatorFee) = IERC2981(address(_nftAddress)).royaltyInfo(_tokenId, remainder);
+        }
 
         uint256 sellerEarnings = remainder;
         bool sent;
