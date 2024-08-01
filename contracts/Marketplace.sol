@@ -39,7 +39,8 @@ contract Marketplace is Pausable, Ownable, ZangNFTCommissions, ReentrancyGuard {
     mapping(uint256 => mapping(uint256 => Listing)) public listings;
     mapping(uint256 => uint256) public listingCount;
 
-    constructor() {
+    constructor(address _commissionAccount) ZangNFTCommissions(_commissionAccount) {
+
     }
 
     function pause() external onlyOwner {

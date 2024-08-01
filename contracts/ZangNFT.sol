@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./ERC2981.sol";
 import {StringUtils} from "./StringUtils.sol";
-import "./ZangNFTCommissions.sol";
 
 contract ZangNFT is
     ERC1155Supply,
@@ -30,7 +29,7 @@ contract ZangNFT is
     string public imageURI;
     string public externalLink;
 
-    constructor(string memory _name, string memory _symbol, string memory _description, string memory _imageURI, string memory _externalLink, address _zangCommissionAccount) ERC1155("") ZangNFTCommissions(_zangCommissionAccount) {
+    constructor(string memory _name, string memory _symbol, string memory _description, string memory _imageURI, string memory _externalLink) ERC1155("") ZangNFTCommissions(_zangCommissionAccount) {
         name = _name;
         symbol = _symbol;
         description = _description;
