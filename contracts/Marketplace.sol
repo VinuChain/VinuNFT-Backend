@@ -2,6 +2,8 @@
 pragma solidity ^0.8.6;
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 interface IZangNFT {
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes calldata data) external;
