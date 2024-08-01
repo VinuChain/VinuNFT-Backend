@@ -132,7 +132,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
     function _handleFunds(IERC1155 nftAddress, uint256 _tokenId, address seller) private {
         uint256 value = msg.value;
-        uint256 platformFee = (value * nftAddress.platformFeePercentage()) / 10000;
+        uint256 platformFee = (value * platformFeePercentage) / 10000;
 
         uint256 remainder = value - platformFee;
 
@@ -152,7 +152,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
             require(sent, "Marketplace: could not send creator fee");
         }
 
-        (sent, ) = payable(nftAddress.zangCommissionAccount()).call{value: platformFee}("");
+        (sent, ) = payable(commissionAccount).call{value: platformFee}("");
         require(sent, "Marketplace: could not send platform fee");
 
         (sent, ) = payable(seller).call{value: sellerEarnings}("");
@@ -185,7 +185,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
         emit TokenPurchased(_tokenId, msg.sender, seller, _listingId, _amount, price);
 
-        _handleFunds(_tokenId, seller);
+        _handleFunds(nftAddress, _tokenId, seller);
         nftAddress.safeTransferFrom(seller, msg.sender, _tokenId, _amount, "");
     }
 }
