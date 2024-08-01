@@ -58,7 +58,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     }
 
     function listToken(IERC1155 nftAddress, uint256 _tokenId, uint256 _price, uint256 _amount) external whenNotPaused nonReentrant {
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist");
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         require(_amount <= nftAddress.balanceOf(msg.sender, _tokenId), "Marketplace: not enough tokens to list");
         require(_amount > 0, "Marketplace: amount must be greater than 0");
@@ -71,7 +71,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     }
 
     function editListingAmount(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist");
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
         require(listings[_tokenId][_listingId].seller == msg.sender, "Marketplace: can only edit own listings");
@@ -85,7 +85,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     }
     
     function editListing(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _price, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist");
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
         require(listings[_tokenId][_listingId].seller == msg.sender, "Marketplace: can only edit own listings");
@@ -100,7 +100,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     }
 
     function editListingPrice(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _price) external whenNotPaused nonReentrant {
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist");
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         // require(_listingId < listingCount[_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
         require(nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         require(listings[_tokenId][_listingId].seller == msg.sender, "Marketplace: can only edit own listings");
@@ -112,7 +112,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     }
 
     function delistToken(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist");
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
         //require(listings[_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a delisted listing"); // Opt.
@@ -161,7 +161,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
     function buyToken(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount) external payable whenNotPaused nonReentrant {
         // If all copies have been burned, the token is deleted
-        require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt.
+        // require(nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(_amount > 0, "Marketplace: _amount must be greater than 0");
         require(_listingId < listingCount[_tokenId], "Marketplace: listing index out of bounds"); // Opt.
         require(listings[_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a delisted listing");
