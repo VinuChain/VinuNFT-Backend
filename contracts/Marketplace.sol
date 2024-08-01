@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-contract Marketplace is Pausable, Ownable {
+contract Marketplace is Pausable, Ownable, ZangNFTCommissions, ReentrancyGuard {
     event TokenListed(
         uint256 indexed _tokenId,
         address indexed _seller,

@@ -12,8 +12,7 @@ import "./ZangNFTCommissions.sol";
 
 contract ZangNFT is
     ERC1155Supply,
-    ERC2981,
-    ZangNFTCommissions
+    ERC2981
 {
     uint256 private _numTokenIds;
 
