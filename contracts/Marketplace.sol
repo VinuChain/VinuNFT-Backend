@@ -13,6 +13,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     event TokenListed(
+        IERC1155 indexed _nftAddress,
         uint256 indexed _tokenId,
         address indexed _seller,
         uint256 _listingId,
@@ -21,15 +22,17 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     );
 
     event TokenDelisted(
+        IERC1155 indexed _nftAddress,
         uint256 indexed _tokenId,
         address indexed _seller,
         uint256 _listingId
     );
 
     event TokenPurchased(
+        IERC1155 indexed _nftAddress,
         uint256 indexed _tokenId,
-        address indexed _buyer,
         address indexed _seller,
+        address _buyer,
         uint256 _listingId,
         uint256 _amount,
         uint256 _price
@@ -71,7 +74,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         uint256 listingId = listingCount[nftAddress][_tokenId];
         listings[nftAddress][_tokenId][listingId] = Listing(_price, msg.sender, _amount);
         listingCount[nftAddress][_tokenId]++;
-        emit TokenListed(_tokenId, msg.sender, listingId, _amount, _price);
+        emit TokenListed(nftAddress, _tokenId, msg.sender, listingId, _amount, _price);
     }
 
     function editListingAmount(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
@@ -85,7 +88,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         require(listings[nftAddress][_tokenId][_listingId].amount == _expectedAmount, "Marketplace: expected amount does not match");
 
         listings[nftAddress][_tokenId][_listingId].amount = _amount;
-        emit TokenListed(_tokenId, msg.sender, _listingId, _amount, listings[nftAddress][_tokenId][_listingId].price);
+        emit TokenListed(nftAddress, _tokenId, msg.sender, _listingId, _amount, listings[nftAddress][_tokenId][_listingId].price);
     }
     
     function editListing(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _price, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
@@ -100,7 +103,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         require(listings[nftAddress][_tokenId][_listingId].amount == _expectedAmount, "Marketplace: expected amount does not match");
 
         listings[nftAddress][_tokenId][_listingId] = Listing(_price, msg.sender, _amount);
-        emit TokenListed(_tokenId, msg.sender, _listingId, _amount, _price);
+        emit TokenListed(nftAddress, _tokenId, msg.sender, _listingId, _amount, _price);
     }
 
     function editListingPrice(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _price) external whenNotPaused nonReentrant {
@@ -112,7 +115,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         //require(listings[nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: listing does not exist"); // Opt.
 
         listings[nftAddress][_tokenId][_listingId].price = _price;
-        emit TokenListed(_tokenId, msg.sender, _listingId, listings[nftAddress][_tokenId][_listingId].amount, _price);
+        emit TokenListed(nftAddress, _tokenId, msg.sender, _listingId, listings[nftAddress][_tokenId][_listingId].amount, _price);
     }
 
     function delistToken(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
@@ -131,7 +134,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
     function _delistToken(IERC1155 nftAddress, uint256 _tokenId, uint256 _listingId) private {
         _removeListing(nftAddress, _tokenId, _listingId);
-        emit TokenDelisted(_tokenId, msg.sender, _listingId);
+        emit TokenDelisted(nftAddress, _tokenId, msg.sender, _listingId);
     }
 
     function _handleFunds(IERC1155 nftAddress, uint256 _tokenId, address seller) private {
@@ -187,7 +190,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
             _delistToken(nftAddress, _tokenId, _listingId);
         }
 
-        emit TokenPurchased(_tokenId, msg.sender, seller, _listingId, _amount, price);
+        emit TokenPurchased(nftAddress, _tokenId, seller, msg.sender, _listingId, _amount, price);
 
         _handleFunds(nftAddress, _tokenId, seller);
         nftAddress.safeTransferFrom(seller, msg.sender, _tokenId, _amount, "");
