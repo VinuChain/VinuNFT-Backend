@@ -110,7 +110,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         emit TokenListed(_nftAddress, _tokenId, msg.sender, _listingId, uint256(_amount), _paymentToken, _price);
     }
 
-    function delistToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
+    function delistToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId) external nonReentrant {
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(listings[_nftAddress][_tokenId][_listingId].seller == msg.sender, "Marketplace: can only delist own listings");
         // require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
