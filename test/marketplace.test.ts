@@ -371,5 +371,41 @@ describe("Marketplace", function () {
                 ).to.be.rejectedWith('Marketplace: expected amount must be greater than or equal to 0, or -1 for no check');
             });
         });
+        describe('delistToken', function () {
+            it('delists a token', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.connect(alice).delistToken(await zangNFT.getAddress(), tokenId, listingId);
+                
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(ZERO_ADDRESS);
+                expect(listing.price).to.equal(0);
+                expect(listing.paymentToken).to.equal(ZERO_ADDRESS);
+                expect(listing.amount).to.equal(0);
+            });
+
+            it('fails to delist a token that does not exist', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                await expect(
+                    marketplace.connect(alice).delistToken(await zangNFT.getAddress(), tokenId, 1)
+                ).to.be.rejectedWith('Marketplace: can only delist own listings');
+            });
+
+            it('fails to delist a token not owned by the user', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await expect(
+                    marketplace.connect(bob).delistToken(await zangNFT.getAddress(), tokenId, 1)
+                ).to.be.rejectedWith('Marketplace: can only delist own listings');
+            });
+        });
     })
 })
