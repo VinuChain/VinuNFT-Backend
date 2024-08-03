@@ -1,11 +1,9 @@
 import {
-    time,
-    loadFixture,
+    time
   } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import hre from "hardhat";
-import { Marketplace, MockERC20, ZangNFT, ZangNFT__factory } from "../typechain-types";
+import { Marketplace, MockERC20, ZangNFT } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -965,5 +963,47 @@ describe("Marketplace", function () {
                 expect(listing.amount).to.equal(1);
             });
         });
+
+        describe('commissions', function () {
+            it('sets the commission account', async function () {
+                await marketplace.setCommissionAccount(alice.address);
+
+                expect(await marketplace.commissionAccount()).to.equal(alice.address);
+            });
+
+            it('decreases the platform commission', async function () {
+                await marketplace.decreasePlatformFeePercentage(100); // 1%
+
+                expect(await marketplace.platformFeePercentage()).to.equal(100);
+            });
+
+            it('increases the platform commission after waiting', async function () {
+                await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+                expect(await marketplace.newPlatformFeePercentage()).to.equal(2000);
+
+                await time.setNextBlockTimestamp((await time.latest()) + 3600 * 24 * 7); // 1 week
+
+                await marketplace.applyPlatformFeePercentageIncrease();
+                expect(await marketplace.platformFeePercentage()).to.equal(2000);
+                expect(await marketplace.newPlatformFeePercentage()).to.equal(0);
+                expect(await marketplace.lock()).to.equal(0);
+            });
+
+            it('fails to increase the platform commission without first requesting it', async function () {
+                await expect(
+                    marketplace.applyPlatformFeePercentageIncrease()
+                ).to.be.revertedWith('NFTCommissions: platform fee percentage increase must be first requested');
+            });
+
+            it('fails to increase the platform commission too soon after requesting it', async function () {
+                await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+
+                await time.setNextBlockTimestamp((await time.latest()) + 3600 * 24 * 1); // 1 day
+
+                await expect(
+                    marketplace.applyPlatformFeePercentageIncrease()
+                ).to.be.revertedWith('NFTCommissions: platform fee percentage increase is locked');
+            });
+        })
     })
 })
