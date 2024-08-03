@@ -184,6 +184,7 @@ contract ZangNFT is
             delete _names[_tokenId];
             delete _descriptions[_tokenId];
             delete _authors[_tokenId];
+            _resetTokenRoyalty(_tokenId);
         }
     }
 
