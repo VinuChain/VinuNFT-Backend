@@ -15,6 +15,8 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     using SafeERC20 for IERC20;
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
+    int256 MAX_AMOUNT = 2**255 - 1; // Maximum value that can be stored in an int256
+
     event TokenListed(
         IERC1155 indexed _nftAddress,
         uint256 indexed _tokenId,
@@ -74,6 +76,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         require(_amount <= _nftAddress.balanceOf(msg.sender, _tokenId), "Marketplace: not enough tokens to list");
         require(_amount > 0, "Marketplace: amount must be greater than 0");
+        require(_amount <= uint256(MAX_AMOUNT), "Marketplace: amount must be less than or equal to MAX_AMOUNT");
         require(_price > 0, "Marketplace: price must be greater than 0");
 
         uint256 listingId = listingCount[_nftAddress][_tokenId];
@@ -82,19 +85,29 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         emit TokenListed(_nftAddress, _tokenId, msg.sender, listingId, _amount, _paymentToken, _price);
     }
     
-    function editListing(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, IERC20 _paymentToken, uint256 _price, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
+    function editListing(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, IERC20 _paymentToken, uint256 _price, int256 _amount, int256 _expectedAmount) external whenNotPaused nonReentrant {
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
+        require(listings[_nftAddress][_tokenId][_listingId].seller == msg.sender, "Marketplace: can only edit own listings");
         require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
-        require(listings[_nftAddress][_tokenId][_listingId].seller == msg.sender, "Marketplace: can only edit own listings");
-        require(_amount <= _nftAddress.balanceOf(msg.sender, _tokenId), "Marketplace: not enough tokens to list");
-        require(_amount > 0, "Marketplace: amount must be greater than 0");
+        require(_amount == -1 || _amount <= int256(_nftAddress.balanceOf(msg.sender, _tokenId)), "Marketplace: not enough tokens to list");
+        require(_amount > 0 || _amount == -1, "Marketplace: amount must be greater than 0 or equal to -1 for no change");
+        // Somewhat redundant, since MAX_AMOUNT is the maximum value that can be stored in an int256
+        require(_amount <= MAX_AMOUNT, "Marketplace: amount must be less than or equal to MAX_AMOUNT");
         require(_price > 0, "Marketplace: price must be greater than 0");
-        //require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: listing does not exist"); // Opt.
-        require(listings[_nftAddress][_tokenId][_listingId].amount == _expectedAmount, "Marketplace: expected amount does not match");
 
-        listings[_nftAddress][_tokenId][_listingId] = Listing(_paymentToken, _price, msg.sender, _amount);
-        emit TokenListed(_nftAddress, _tokenId, msg.sender, _listingId, _amount, _paymentToken, _price);
+        //require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: listing does not exist"); // Opt.
+        if (_expectedAmount != -1) {
+            require(_expectedAmount >= 0, "Marketplace: expected amount must be greater than or equal to 0, or -1 for no check");
+            require(listings[_nftAddress][_tokenId][_listingId].amount == uint256(_expectedAmount), "Marketplace: expected amount does not match");
+        }
+
+        if (_amount == -1) {
+            _amount = int256(listings[_nftAddress][_tokenId][_listingId].amount);
+        }
+
+        listings[_nftAddress][_tokenId][_listingId] = Listing(_paymentToken, _price, msg.sender, uint256(_amount));
+        emit TokenListed(_nftAddress, _tokenId, msg.sender, _listingId, uint256(_amount), _paymentToken, _price);
     }
 
     function delistToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
@@ -129,7 +142,6 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         }
 
         uint256 sellerEarnings = remainder;
-        bool sent;
 
         if(creatorFee > 0) {
             sellerEarnings -= creatorFee;
