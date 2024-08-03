@@ -6,10 +6,13 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/interfaces/IERC165.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./NFTCommissions.sol";
 
 contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     event TokenListed(
@@ -18,6 +21,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         address indexed _seller,
         uint256 _listingId,
         uint256 amount,
+        IERC20 _paymentToken,
         uint256 _price
     );
 
@@ -39,6 +43,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     );
 
     struct Listing {
+        IERC20 paymentToken;
         uint256 price;
         address seller;
         uint256 amount;
@@ -64,7 +69,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         return listings[_nftAddress][_tokenId][_listingId];
     }
 
-    function listToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _price, uint256 _amount) external whenNotPaused nonReentrant {
+    function listToken(IERC1155 _nftAddress, uint256 _tokenId, IERC20 _paymentToken, uint256 _price, uint256 _amount) external whenNotPaused nonReentrant {
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         require(_amount <= _nftAddress.balanceOf(msg.sender, _tokenId), "Marketplace: not enough tokens to list");
@@ -72,12 +77,12 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         require(_price > 0, "Marketplace: price must be greater than 0");
 
         uint256 listingId = listingCount[_nftAddress][_tokenId];
-        listings[_nftAddress][_tokenId][listingId] = Listing(_price, msg.sender, _amount);
+        listings[_nftAddress][_tokenId][listingId] = Listing(_paymentToken, _price, msg.sender, _amount);
         listingCount[_nftAddress][_tokenId]++;
         emit TokenListed(_nftAddress, _tokenId, msg.sender, listingId, _amount, _paymentToken, _price);
     }
     
-    function editListing(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _price, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
+    function editListing(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, IERC20 _paymentToken, uint256 _price, uint256 _amount, uint256 _expectedAmount) external whenNotPaused nonReentrant {
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
@@ -88,8 +93,8 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         //require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: listing does not exist"); // Opt.
         require(listings[_nftAddress][_tokenId][_listingId].amount == _expectedAmount, "Marketplace: expected amount does not match");
 
-        listings[_nftAddress][_tokenId][_listingId] = Listing(_price, msg.sender, _amount);
-        emit TokenListed(_nftAddress, _tokenId, msg.sender, _listingId, _amount, _price);
+        listings[_nftAddress][_tokenId][_listingId] = Listing(_paymentToken, _price, msg.sender, _amount);
+        emit TokenListed(_nftAddress, _tokenId, msg.sender, _listingId, _amount, _paymentToken, _price);
     }
 
     function delistToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
@@ -111,8 +116,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         emit TokenDelisted(_nftAddress, _tokenId, msg.sender, _listingId);
     }
 
-    function _handleFunds(IERC1155 _nftAddress, uint256 _tokenId, address seller) private {
-        uint256 value = msg.value;
+    function _handleFunds(IERC1155 _nftAddress, uint256 _tokenId, address seller, IERC20 _paymentToken, uint256 value) private {
         uint256 platformFee = (value * platformFeePercentage) / 10000;
 
         uint256 remainder = value - platformFee;
@@ -129,15 +133,13 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
         if(creatorFee > 0) {
             sellerEarnings -= creatorFee;
-            (sent, ) = payable(creator).call{value: creatorFee}("");
-            require(sent, "Marketplace: could not send creator fee");
+
+            _paymentToken.safeTransferFrom(msg.sender, creator, creatorFee);
         }
 
-        (sent, ) = payable(commissionAccount).call{value: platformFee}("");
-        require(sent, "Marketplace: could not send platform fee");
-
-        (sent, ) = payable(seller).call{value: sellerEarnings}("");
-        require(sent, "Marketplace: could not send seller earnings");
+        _paymentToken.safeTransferFrom(msg.sender, commissionAccount, platformFee);
+        
+        _paymentToken.safeTransferFrom(msg.sender, seller, sellerEarnings);
     }
 
     function buyToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount) external payable whenNotPaused nonReentrant {
@@ -152,9 +154,10 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         // If seller transfers tokens "for free", their listing is still active! If they get them back they can still be bought
         require(_amount <= _nftAddress.balanceOf(seller, _tokenId), "Marketplace: seller does not have enough tokens");
 
+        IERC20 paymentToken = listings[_nftAddress][_tokenId][_listingId].paymentToken;
         uint256 price = listings[_nftAddress][_tokenId][_listingId].price;
         // check if listing is satisfied
-        require(msg.value == price * _amount, "Marketplace: price does not match");
+        require(paymentToken.allowance(msg.sender, address(this)) >= price * _amount, "Marketplace: not enough funds");
 
         // Update listing
         listings[_nftAddress][_tokenId][_listingId].amount -= _amount;
@@ -166,7 +169,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
         emit TokenPurchased(_nftAddress, _tokenId, seller, msg.sender, _listingId, _amount, price);
 
-        _handleFunds(_nftAddress, _tokenId, seller);
+        _handleFunds(_nftAddress, _tokenId, seller, paymentToken, price * _amount);
         _nftAddress.safeTransferFrom(seller, msg.sender, _tokenId, _amount, "");
     }
 }
