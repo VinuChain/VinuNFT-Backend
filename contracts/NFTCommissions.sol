@@ -35,5 +35,6 @@ contract NFTCommissions is Ownable {
         require(block.timestamp >= lock, "NFTCommissions: platform fee percentage increase is locked");
         lock = 0;
         platformFeePercentage = newPlatformFeePercentage;
+        newPlatformFeePercentage = 0;
     }
 }
