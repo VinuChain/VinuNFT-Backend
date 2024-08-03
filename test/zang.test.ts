@@ -56,7 +56,6 @@ describe("ZangNFT", function () {
 
             const contractURI = await zangNFT.contractURI();
 
-            console.log(contractURI);
             const parsedContractURI = parseContractURI(contractURI);
             expect(parsedContractURI.name).to.equal("ZangNFT");
             expect(parsedContractURI.description).to.equal("zang description");
@@ -104,13 +103,130 @@ describe("ZangNFT", function () {
                 //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
                 const textURI = await zangNFT.textURI(1);
 
-                console.log(textURI);
                 const parsedText = parseTextURI(textURI);
                 expect(parsedText).to.equal("Hello Bob");
 
                 const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
                 expect(royaltyInfo[0]).to.equal(bob.address);
                 expect(royaltyInfo[1]).to.equal(1000);
+            });
+        })
+
+        describe("burn", function () {
+            it('burns a token', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await zangNFT.connect(alice).burn(alice.address, 1, 1);
+
+                expect(await zangNFT.totalSupply()).to.equal(9);
+                expect(await zangNFT.lastTokenId()).to.equal(1);
+                //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
+                const textURI = await zangNFT.textURI(1);
+
+                const parsedText = parseTextURI(textURI);
+                expect(parsedText).to.equal("Hello Bob");
+
+                const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
+                expect(royaltyInfo[0]).to.equal(bob.address);
+                expect(royaltyInfo[1]).to.equal(1000);
+            });
+
+            it('burns for someone else with approval', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await zangNFT.connect(alice).setApprovalForAll(bob.address, true);
+                await zangNFT.connect(bob).burn(alice.address, 1, 1);
+            });
+
+            it('burns all tokens', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await zangNFT.connect(alice).burn(alice.address, 1, 10);
+
+                expect(await zangNFT.totalSupply()).to.equal(0);
+                expect(await zangNFT.lastTokenId()).to.equal(1);
+                //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
+                await expect(
+                    zangNFT.textURI(1)
+                ).to.be.rejectedWith("ZangNFT: textURI query for nonexistent token");
+
+                const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
+                expect(royaltyInfo[0]).to.equal(ZERO_ADDRESS);
+                expect(royaltyInfo[1]).to.equal(0);
+            });
+
+            it('fails to burn more tokens than there exit', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await expect(
+                    zangNFT.connect(alice).burn(alice.address, 1, 11)
+                ).to.be.reverted;
+            });
+
+            it('fails to burn more tokens than the user has', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, bob.address, 1, 1, Buffer.from(""));
+
+                await expect(
+                    zangNFT.connect(alice).burn(alice.address, 1, 10)
+                ).to.be.reverted;
+            });
+
+            it('fails to burn for someone else without approval', async function () {
+                await zangNFT.connect(alice).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    10,
+                    1000,
+                    bob.address,
+                    Buffer.from("")
+                );
+
+                await expect(
+                    zangNFT.connect(bob).burn(alice.address, 1, 1)
+                ).to.be.rejected;
             });
         })
     })
