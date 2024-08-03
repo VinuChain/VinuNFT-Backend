@@ -225,6 +225,26 @@ describe("Marketplace", function () {
                 expect(listing.amount).to.equal(1);
             });
 
+            it('edits a listing when some tokens have been transferred away', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 5 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 4);
+
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, bob.address, tokenId, 1, Buffer.from(""));
+
+                const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
+
+                await marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 3, 4);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price + 1);
+                expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                expect(listing.amount).to.equal(3);
+            });
+
             it('edits a listing ignoring the expected amount', async function () {
                 const tokenId = await mintStandardNft(alice, { amount : 2 });
                 const price = 100;
@@ -285,6 +305,21 @@ describe("Marketplace", function () {
 
                 await expect(
                     marketplace.connect(bob).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 1)
+                ).to.be.rejectedWith('Marketplace: can only edit own listings');
+            });
+
+            it('fails to edit a listing with more tokens that the user owns', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                await zangNFT.connect(bob).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
+
+                await expect(
+                    marketplace.connect(bob).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 3)
                 ).to.be.rejectedWith('Marketplace: can only edit own listings');
             });
 
@@ -372,6 +407,22 @@ describe("Marketplace", function () {
                     marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, -2)
                 ).to.be.rejectedWith('Marketplace: expected amount must be greater than or equal to 0, or -1 for no check');
             });
+
+            it('fails to edit a listing where too many tokens have been transferred away', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 5 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 4);
+
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, bob.address, tokenId, 3, Buffer.from(""));
+
+                const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
+
+                await expect(
+                    marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 3, 4)
+                ).to.be.rejectedWith('Marketplace: not enough tokens to list');
+            });
         });
         describe('delistToken', function () {
             it('delists a token', async function () {
@@ -406,6 +457,20 @@ describe("Marketplace", function () {
 
                 await expect(
                     marketplace.connect(bob).delistToken(await zangNFT.getAddress(), tokenId, 1)
+                ).to.be.rejectedWith('Marketplace: can only delist own listings');
+            });
+
+            it('fails to delist an already delisted listing', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.connect(alice).delistToken(await zangNFT.getAddress(), tokenId, listingId);
+                
+                await expect(
+                    marketplace.connect(bob).delistToken(await zangNFT.getAddress(), tokenId, listingId)
                 ).to.be.rejectedWith('Marketplace: can only delist own listings');
             });
         });
