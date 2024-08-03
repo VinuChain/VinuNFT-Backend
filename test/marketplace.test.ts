@@ -56,13 +56,15 @@ describe("Marketplace", function () {
         let deployer : HardhatEthersSigner;
         let alice: HardhatEthersSigner;
         let bob: HardhatEthersSigner;
+        let charlie: HardhatEthersSigner;
         let paymentToken: MockERC20;
 
         beforeEach(async function () {
-            const [d, a, b] = await hre.ethers.getSigners();
+            const [d, a, b, c] = await hre.ethers.getSigners();
             deployer = d;
             alice = a;
             bob = b;
+            charlie = c;
 
             const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
             zangNFT = await ZangNFT.deploy(
@@ -405,6 +407,394 @@ describe("Marketplace", function () {
                 await expect(
                     marketplace.connect(bob).delistToken(await zangNFT.getAddress(), tokenId, 1)
                 ).to.be.rejectedWith('Marketplace: can only delist own listings');
+            });
+        });
+
+        describe('buyToken', function () {
+            it('buys a token', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(price * 0.95);
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+            });
+
+            it('buys a token with creator fee', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2, fee: 1000, feeRecipient: charlie.address }); // 10% fee
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(Math.ceil(price * 0.95 * 0.9));
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+                expect(await paymentToken.balanceOf(charlie.address)).to.equal(Math.floor(price * 0.95 * 0.1)); // 10% fee
+            });
+
+            it('buys multiple tokens', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 3 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 3);
+
+                await paymentToken.connect(bob).mint(price * 2);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price * 2);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(2);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(price * 2 * 0.95);
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 2 * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+            });
+
+            it('buys a token, leading to a delist', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(ZERO_ADDRESS);
+                expect(listing.price).to.equal(0);
+                expect(listing.paymentToken).to.equal(ZERO_ADDRESS);
+                expect(listing.amount).to.equal(0);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(price * 0.95);
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+            });
+
+            it('buys a token with a lower price than expected', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price + 1);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(price * 0.95);
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+            });
+
+            it('buys a token from a listing that had the price decreased', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price - 1, 2, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price - 1);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(Math.ceil((price - 1) * 0.95));
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(Math.floor((price - 1) * 0.05)); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(1);
+            });
+
+            it('buys a token even if some were transferred away', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 5 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 5);
+
+                // Transfer 3 tokens away
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, charlie.address, tokenId, 3, Buffer.from(""));
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(4);
+
+                expect(await zangNFT.balanceOf(bob.address, tokenId)).to.equal(1);
+                expect(await paymentToken.balanceOf(alice.address)).to.equal(price * 0.95);
+                expect(await paymentToken.balanceOf(deployer.address)).to.equal(price * 0.05); // 5% commission
+                expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
+            });
+
+            it('fails to buy from a non-existing listing', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(alice).buyToken(await zangNFT.getAddress(), tokenId, 1, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
+            });
+
+            it('fails to buy zero tokens', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(alice).buyToken(await zangNFT.getAddress(), tokenId, listingId, 0, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: _amount must be greater than 0');
+            });
+
+            it('fails to buy from a fully used listing', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(alice).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
+            });
+
+            it('fails to buy from a delisted listing', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.connect(alice).delistToken(await zangNFT.getAddress(), tokenId, listingId);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(alice).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
+            });
+
+            it('fails to buy from a listing that had the price increased', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price + 1, 2, 1);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: price too high');
+            });
+
+            it('fails to buy from a listing that had the payment token changed', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
+
+                await marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price, 2, 1);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: payment token does not match');
+            });
+
+            it('fails to buy a token without having enough tokens', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price - 1);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price - 1);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: not enough allowance');
+            });
+
+            it('fails to buy a token without approving enough tokens', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price - 1);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: not enough allowance');
+            });
+
+            it('fails to buy a token with a higher than expected price', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price - 1)
+                ).to.be.rejectedWith('Marketplace: price too high');
+            });
+
+            it('fails to buy a token with an unexpected payment token', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await alternativeToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: payment token does not match');
+            });
+
+            it('fails to buy from an owned listing', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 2 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(alice).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: cannot buy from yourself');
+            });
+
+            it('fails to buy when too many tokens were transferred away', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 5 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 5);
+
+                await paymentToken.connect(bob).mint(price * 2);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price * 2);
+
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, charlie.address, tokenId, 4, Buffer.from(""));
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: seller does not have enough tokens');
+            });
+
+            it('fails to buy when all tokens were transferred away', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 5 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 5);
+
+                await paymentToken.connect(bob).mint(price * 2);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price * 2);
+
+                await zangNFT.connect(alice).safeTransferFrom(alice.address, charlie.address, tokenId, 5, Buffer.from(""));
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price)
+                ).to.be.rejectedWith('Marketplace: seller does not have enough tokens');
             });
         });
     })
