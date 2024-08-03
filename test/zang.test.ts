@@ -46,21 +46,22 @@ describe("ZangNFT", function () {
                 "ZNG",
                 "zang description",
                 "zang image uri",
-                "zang external link",
-                ZERO_ADDRESS
+                "zang external link"
             );
             expect(await zangNFT.name()).to.equal("ZangNFT");
             expect(await zangNFT.symbol()).to.equal("ZNG");
             expect(await zangNFT.description()).to.equal("zang description");
             expect(await zangNFT.imageURI()).to.equal("zang image uri");
             expect(await zangNFT.externalLink()).to.equal("zang external link");
-            expect(await zangNFT.owner()).to.equal(deployer.address);
-            expect(await zangNFT.zangCommissionAccount()).to.equal(ZERO_ADDRESS);
 
             const contractURI = await zangNFT.contractURI();
-            expect(contractURI).to.equal(
-                "data:application/json;base64,eyJuYW1lIjogIlphbmdORlQiLCAiZGVzY3JpcHRpb24iOiAiemFuZyBkZXNjcmlwdGlvbiIsICJpbWFnZSI6ICJ6YW5nIGltYWdlIHVyaSIsICJleHRlcm5hbF9saW5rIjogInphbmcgZXh0ZXJuYWwgbGluayIsICJzZWxsZXJfZmVlX2Jhc2lzX3BvaW50cyIgOiA1MDAsICJmZWVfcmVjaXBpZW50IjogIjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9"
-            );
+
+            console.log(contractURI);
+            const parsedContractURI = parseContractURI(contractURI);
+            expect(parsedContractURI.name).to.equal("ZangNFT");
+            expect(parsedContractURI.description).to.equal("zang description");
+            expect(parsedContractURI.image).to.equal("zang image uri");
+            expect(parsedContractURI.external_link).to.equal("zang external link");
         });
         }
     )
@@ -82,14 +83,12 @@ describe("ZangNFT", function () {
                 "ZNG",
                 "zang description",
                 "zang image uri",
-                "zang external link",
-                deployer.address
+                "zang external link"
             );
         });
 
         describe("mint", function () {
             it('mints a token', async function () {
-
                 await zangNFT.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
