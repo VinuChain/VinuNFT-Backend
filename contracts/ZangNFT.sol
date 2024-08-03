@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Pausable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./ERC2981.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {StringUtils} from "./StringUtils.sol";
 
 contract ZangNFT is
@@ -29,7 +29,7 @@ contract ZangNFT is
     string public imageURI;
     string public externalLink;
 
-    constructor(string memory _name, string memory _symbol, string memory _description, string memory _imageURI, string memory _externalLink) ERC1155("") ZangNFTCommissions(_zangCommissionAccount) {
+    constructor(string memory _name, string memory _symbol, string memory _description, string memory _imageURI, string memory _externalLink) ERC1155("") {
         name = _name;
         symbol = _symbol;
         description = _description;
@@ -44,7 +44,7 @@ contract ZangNFT is
         override(ERC1155, ERC2981)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return ERC1155.supportsInterface(interfaceId) || ERC2981.supportsInterface(interfaceId) || super.supportsInterface(interfaceId);
     }
 
     function contractURI() public view returns (string memory) {
@@ -61,9 +61,9 @@ contract ZangNFT is
                         StringUtils.insertBeforeAsciiString(description, '"', '\\'),
                         '", ',
                         '"image": "', imageURI, '", '
-                        '"external_link": "', externalLink, '", '
-                        '"seller_fee_basis_points" : ', Strings.toString(platformFeePercentage), ', '
-                        '"fee_recipient": "', Strings.toHexString(uint256(uint160(zangCommissionAccount)), 20), '"'
+                        '"external_link": "', externalLink, '"'
+                        //'"seller_fee_basis_points" : ', Strings.toString(platformFeePercentage), ', '
+                        //'"fee_recipient": "', Strings.toHexString(uint256(uint160(zangCommissionAccount)), 20), '"'
                         "}"
                     )
                 )
@@ -187,14 +187,14 @@ contract ZangNFT is
         }
     }
 
-    function decreaseRoyaltyNumerator(uint256 _tokenId, uint96 _lowerValue) external {
+    /*function decreaseRoyaltyNumerator(uint256 _tokenId, uint96 _lowerValue) external {
         require(
             exists(_tokenId),
             "ZangNFT: decreasing royalty numerator for nonexistent token"
         ); // Opt.
         require(msg.sender == authorOf(_tokenId), "ZangNFT: caller is not author");
 
-        _decreaseRoyaltyNumerator(_tokenId, _lowerValue);
+        _setTokenRoyalty(_tokenId, _lowerValue);
     }
 
     function royaltyNumerator(uint256 _tokenId) external view returns (uint96) {
@@ -202,10 +202,10 @@ contract ZangNFT is
             exists(_tokenId),
             "ZangNFT: royalty info query for nonexistent token"
         ); // Opt.
-        return _royaltyNumerator(_tokenId);
+        return royaltyNumerator(_tokenId);
     }
 
     function royaltyDenominator() external pure returns (uint96) {
         return _feeDenominator();
-    }
+    }*/
 }
