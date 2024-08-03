@@ -158,8 +158,8 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         // If all copies have been burned, the token is deleted, which means that a listing could have a non-existent token
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(_amount > 0, "Marketplace: _amount must be greater than 0");
-        require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing index out of bounds"); // Opt.
-        require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a delisted listing");
+        // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing index out of bounds"); // Opt.
+        require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a non-existent listing");
         require(listings[_nftAddress][_tokenId][_listingId].seller != msg.sender, "Marketplace: cannot buy from yourself");
         require(_amount <= listings[_nftAddress][_tokenId][_listingId].amount, "Marketplace: not enough tokens to buy");
         address seller = listings[_nftAddress][_tokenId][_listingId].seller;
@@ -171,7 +171,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         uint256 price = listings[_nftAddress][_tokenId][_listingId].price;
         require(price <= _expectedPrice, "Marketplace: price too high");
         // check if listing is satisfied
-        require(paymentToken.allowance(msg.sender, address(this)) >= price * _amount, "Marketplace: not enough funds");
+        require(paymentToken.allowance(msg.sender, address(this)) >= price * _amount, "Marketplace: not enough allowance");
 
         // Update listing
         listings[_nftAddress][_tokenId][_listingId].amount -= _amount;
