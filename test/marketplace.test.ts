@@ -862,5 +862,108 @@ describe("Marketplace", function () {
                 ).to.be.rejectedWith('Marketplace: seller does not have enough tokens');
             });
         });
+
+        describe('pause', function () {
+            it('pauses and unpauses the contract', async function () {
+                await marketplace.pause();
+                expect(await marketplace.paused()).to.be.true;
+
+                await marketplace.unpause();
+                expect(await marketplace.paused()).to.be.false;
+            });
+
+            it('fails to pause the contract if not the owner', async function () {
+                await expect(
+                    marketplace.connect(bob).pause()
+                ).to.be.revertedWithCustomError(marketplace, 'OwnableUnauthorizedAccount');
+            });
+
+            it('fails to unpause the contract if not the owner', async function () {
+                await marketplace.pause();
+
+                await expect(
+                    marketplace.connect(bob).unpause()
+                ).to.be.revertedWithCustomError(marketplace, 'OwnableUnauthorizedAccount');
+            });
+
+            it('fails to list when the contract is paused', async function () {
+                await marketplace.pause();
+
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+
+                await expect(
+                    marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1)
+                ).to.be.revertedWithCustomError(marketplace, 'EnforcedPause');
+            });
+
+            it('fails to edit when the contract is paused', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.pause();
+
+                await expect(
+                    marketplace.connect(alice).editListing(await zangNFT.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price + 1, 1, 1)
+                ).to.be.revertedWithCustomError(marketplace, 'EnforcedPause');
+            });
+
+            it('successfully delists when the contract is paused', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.pause();
+
+                await marketplace.connect(alice).delistToken(await zangNFT.getAddress(), tokenId, listingId);
+                
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(ZERO_ADDRESS);
+                expect(listing.price).to.equal(0);
+                expect(listing.paymentToken).to.equal(ZERO_ADDRESS);
+                expect(listing.amount).to.equal(0);
+            });
+
+            it('fails to buy when the contract is paused', async function () {
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                await marketplace.pause();
+
+                await paymentToken.connect(bob).mint(price);
+                await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                await expect(
+                    marketplace.connect(bob).buyToken(await zangNFT.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                ).to.be.revertedWithCustomError(marketplace, 'EnforcedPause');
+            });
+
+            it('successfully lists when the contract is unpaused', async function () {
+                await marketplace.pause();
+                await marketplace.unpause();
+
+                const tokenId = await mintStandardNft(alice, { amount : 1 });
+                const price = 100;
+                await zangNFT.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+
+                const listingId = await marketplace.listingCount(await zangNFT.getAddress(), tokenId);
+                await marketplace.connect(alice).listToken(await zangNFT.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+                const listing = await marketplace.getListing(await zangNFT.getAddress(), tokenId, listingId);
+                expect(listing.seller).to.equal(alice.address);
+                expect(listing.price).to.equal(price);
+                expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
+                expect(listing.amount).to.equal(1);
+            });
+        });
     })
 })
