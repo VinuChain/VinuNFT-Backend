@@ -112,10 +112,10 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
     function delistToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId) external whenNotPaused nonReentrant {
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
-        require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
+        require(listings[_nftAddress][_tokenId][_listingId].seller == msg.sender, "Marketplace: can only delist own listings");
+        // require(_nftAddress.isApprovedForAll(msg.sender, address(this)), "Marketplace: Marketplace contract is not approved");
         // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
-        //require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a delisted listing"); // Opt.
-        require(listings[_nftAddress][_tokenId][_listingId].seller == msg.sender, "Marketplace: can only remove own listings");
+        // require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a delisted listing"); // Opt.
 
         _delistToken(_nftAddress, _tokenId, _listingId);
     }
@@ -154,8 +154,8 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         _paymentToken.safeTransferFrom(msg.sender, seller, sellerEarnings);
     }
 
-    function buyToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount) external payable whenNotPaused nonReentrant {
-        // If all copies have been burned, the token is deleted
+    function buyToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount, IERC20 _expectedPaymentToken, uint256 _expectedPrice) external payable whenNotPaused nonReentrant {
+        // If all copies have been burned, the token is deleted, which means that a listing could have a non-existent token
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
         require(_amount > 0, "Marketplace: _amount must be greater than 0");
         require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing index out of bounds"); // Opt.
@@ -167,7 +167,9 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         require(_amount <= _nftAddress.balanceOf(seller, _tokenId), "Marketplace: seller does not have enough tokens");
 
         IERC20 paymentToken = listings[_nftAddress][_tokenId][_listingId].paymentToken;
+        require(paymentToken == _expectedPaymentToken, "Marketplace: payment token does not match");
         uint256 price = listings[_nftAddress][_tokenId][_listingId].price;
+        require(price <= _expectedPrice, "Marketplace: price too high");
         // check if listing is satisfied
         require(paymentToken.allowance(msg.sender, address(this)) >= price * _amount, "Marketplace: not enough funds");
 
