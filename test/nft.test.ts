@@ -5,8 +5,9 @@ import {
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import hre from "hardhat";
-import { ZangNFT, ZangNFT__factory } from "../typechain-types";
+import { VinuNFT, ZangNFT, ZangNFT__factory } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { BigNumberish } from "ethers";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -62,10 +63,17 @@ describe("ZangNFT", function () {
             expect(parsedContractURI.image).to.equal("zang image uri");
             expect(parsedContractURI.external_link).to.equal("zang external link");
         });
-        }
-    )
+
+        it('deploys VinuNFT', async function () {
+            const [deployer] = await hre.ethers.getSigners();
+
+            const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
+            const vinuNFT = await VinuNFT.deploy();
+        });
+    });
+    for (const nftType of ["vinu", "zang"]) {
     describe("execution", function () {
-        let zangNFT: ZangNFT;
+        let nftContract: ZangNFT | VinuNFT;
         let deployer : HardhatEthersSigner;
         let alice: HardhatEthersSigner;
         let bob: HardhatEthersSigner;
@@ -77,7 +85,7 @@ describe("ZangNFT", function () {
             bob = b;
 
             const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
-            zangNFT = await ZangNFT.deploy(
+            nftContract = await ZangNFT.deploy(
                 "ZangNFT",
                 "ZNG",
                 "zang description",
@@ -86,9 +94,45 @@ describe("ZangNFT", function () {
             );
         });
 
+        async function mintStandardNft(minter: HardhatEthersSigner,
+            { amount, feeRecipient, fee }: { amount?: BigNumberish, feeRecipient?: string, fee?: number }
+        ) {
+            if (amount === undefined) {
+                amount = 1;
+            }
+            if (feeRecipient === undefined) {
+                feeRecipient = minter.address;
+            }
+            if (fee === undefined) {
+                fee = 0;
+            }
+
+            if (nftType === "vinu") {
+                await (nftContract as VinuNFT).connect(minter).mint(
+                    encodeTextURI("Hello Bob"),
+                    amount,
+                    fee,
+                    feeRecipient,
+                    Buffer.from("")
+                );
+            } else {
+                await (nftContract as ZangNFT).connect(minter).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    amount,
+                    fee,
+                    feeRecipient,
+                    Buffer.from("")
+                );
+            }
+            const tokenId = await nftContract.lastTokenId();
+            return tokenId;
+        }
+
         describe("mint", function () {
             it('mints a token', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -98,15 +142,15 @@ describe("ZangNFT", function () {
                     Buffer.from("")
                 );
 
-                expect(await zangNFT.totalSupply()).to.equal(1);
-                expect(await zangNFT.lastTokenId()).to.equal(1);
+                expect(await nftContract.totalSupply()).to.equal(1);
+                expect(await nftContract.lastTokenId()).to.equal(1);
                 //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
-                const textURI = await zangNFT.textURI(1);
+                const textURI = await nftContract.textURI(1);
 
                 const parsedText = parseTextURI(textURI);
                 expect(parsedText).to.equal("Hello Bob");
 
-                const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
+                const royaltyInfo = await nftContract.royaltyInfo(1, 10000);
                 expect(royaltyInfo[0]).to.equal(bob.address);
                 expect(royaltyInfo[1]).to.equal(1000);
             });
@@ -114,7 +158,7 @@ describe("ZangNFT", function () {
 
         describe("burn", function () {
             it('burns a token', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -124,23 +168,23 @@ describe("ZangNFT", function () {
                     Buffer.from("")
                 );
 
-                await zangNFT.connect(alice).burn(alice.address, 1, 1);
+                await nftContract.connect(alice).burn(alice.address, 1, 1);
 
-                expect(await zangNFT.totalSupply()).to.equal(9);
-                expect(await zangNFT.lastTokenId()).to.equal(1);
+                expect(await nftContract.totalSupply()).to.equal(9);
+                expect(await nftContract.lastTokenId()).to.equal(1);
                 //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
-                const textURI = await zangNFT.textURI(1);
+                const textURI = await nftContract.textURI(1);
 
                 const parsedText = parseTextURI(textURI);
                 expect(parsedText).to.equal("Hello Bob");
 
-                const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
+                const royaltyInfo = await nftContract.royaltyInfo(1, 10000);
                 expect(royaltyInfo[0]).to.equal(bob.address);
                 expect(royaltyInfo[1]).to.equal(1000);
             });
 
             it('burns for someone else with approval', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -150,12 +194,12 @@ describe("ZangNFT", function () {
                     Buffer.from("")
                 );
 
-                await zangNFT.connect(alice).setApprovalForAll(bob.address, true);
-                await zangNFT.connect(bob).burn(alice.address, 1, 1);
+                await nftContract.connect(alice).setApprovalForAll(bob.address, true);
+                await nftContract.connect(bob).burn(alice.address, 1, 1);
             });
 
             it('burns all tokens', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -165,22 +209,22 @@ describe("ZangNFT", function () {
                     Buffer.from("")
                 );
 
-                await zangNFT.connect(alice).burn(alice.address, 1, 10);
+                await nftContract.connect(alice).burn(alice.address, 1, 10);
 
-                expect(await zangNFT.totalSupply()).to.equal(0);
-                expect(await zangNFT.lastTokenId()).to.equal(1);
+                expect(await nftContract.totalSupply()).to.equal(0);
+                expect(await nftContract.lastTokenId()).to.equal(1);
                 //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
                 await expect(
-                    zangNFT.textURI(1)
+                    nftContract.textURI(1)
                 ).to.be.rejectedWith("ZangNFT: textURI query for nonexistent token");
 
-                const royaltyInfo = await zangNFT.royaltyInfo(1, 10000);
+                const royaltyInfo = await nftContract.royaltyInfo(1, 10000);
                 expect(royaltyInfo[0]).to.equal(ZERO_ADDRESS);
                 expect(royaltyInfo[1]).to.equal(0);
             });
 
             it('fails to burn more tokens than there exit', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -191,12 +235,12 @@ describe("ZangNFT", function () {
                 );
 
                 await expect(
-                    zangNFT.connect(alice).burn(alice.address, 1, 11)
+                    nftContract.connect(alice).burn(alice.address, 1, 11)
                 ).to.be.reverted;
             });
 
             it('fails to burn more tokens than the user has', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -206,15 +250,15 @@ describe("ZangNFT", function () {
                     Buffer.from("")
                 );
 
-                await zangNFT.connect(alice).safeTransferFrom(alice.address, bob.address, 1, 1, Buffer.from(""));
+                await nftContract.connect(alice).safeTransferFrom(alice.address, bob.address, 1, 1, Buffer.from(""));
 
                 await expect(
-                    zangNFT.connect(alice).burn(alice.address, 1, 10)
+                    nftContract.connect(alice).burn(alice.address, 1, 10)
                 ).to.be.reverted;
             });
 
             it('fails to burn for someone else without approval', async function () {
-                await zangNFT.connect(alice).mint(
+                await nftContract.connect(alice).mint(
                     encodeTextURI("Hello Bob"),
                     "Zang Test",
                     "Zang Description",
@@ -225,9 +269,10 @@ describe("ZangNFT", function () {
                 );
 
                 await expect(
-                    zangNFT.connect(bob).burn(alice.address, 1, 1)
+                    nftContract.connect(bob).burn(alice.address, 1, 1)
                 ).to.be.rejected;
             });
         })
     })
+    }
 })
