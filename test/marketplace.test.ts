@@ -3,7 +3,7 @@ import {
   } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
-import { Marketplace, MockERC20, ZangNFT } from "../typechain-types";
+import { Marketplace, MockERC20, VinuNFT, ZangNFT } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -48,8 +48,9 @@ describe("Marketplace", function () {
             expect(await marketplace.commissionAccount()).to.equal(deployer.address);
         });
     })
-    describe("execution", function () {
-        let zangNFT: ZangNFT;
+    for (const nftType of ["vinu", "zang"]) {
+    describe(`execution (${nftType})`, function () {
+        let zangNFT: ZangNFT | VinuNFT;
         let marketplace : Marketplace;
         let deployer : HardhatEthersSigner;
         let alice: HardhatEthersSigner;
@@ -64,14 +65,20 @@ describe("Marketplace", function () {
             bob = b;
             charlie = c;
 
-            const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
-            zangNFT = await ZangNFT.deploy(
-                "ZangNFT",
-                "ZNG",
-                "zang description",
-                "zang image uri",
-                "zang external link"
-            );
+            if (nftType === "vinu") {
+                const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
+                zangNFT = await VinuNFT.deploy();
+
+            } else {
+                const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
+                zangNFT = await ZangNFT.deploy(
+                    "ZangNFT",
+                    "ZNG",
+                    "zang description",
+                    "zang image uri",
+                    "zang external link"
+                );
+            }
 
             const Marketplace = await hre.ethers.getContractFactory("Marketplace");
             marketplace = await Marketplace.deploy(
@@ -94,15 +101,26 @@ describe("Marketplace", function () {
             if (fee === undefined) {
                 fee = 0;
             }
-            await zangNFT.connect(minter).mint(
-                encodeTextURI("Hello Bob"),
-                "Zang Test",
-                "Zang Description",
-                amount,
-                fee,
-                feeRecipient,
-                Buffer.from("")
-            );
+
+            if (nftType === "vinu") {
+                await (zangNFT as VinuNFT).connect(minter).mint(
+                    encodeTextURI("Hello Bob"),
+                    amount,
+                    fee,
+                    feeRecipient,
+                    Buffer.from("")
+                );
+            } else {
+                await (zangNFT as ZangNFT).connect(minter).mint(
+                    encodeTextURI("Hello Bob"),
+                    "Zang Test",
+                    "Zang Description",
+                    amount,
+                    fee,
+                    feeRecipient,
+                    Buffer.from("")
+                );
+            }
             const tokenId = await zangNFT.lastTokenId();
             return tokenId;
         }
@@ -1006,4 +1024,5 @@ describe("Marketplace", function () {
             });
         })
     })
+}
 })
