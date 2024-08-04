@@ -30,7 +30,7 @@ contract VinuNFT is
     }
 
     function uri(uint256 tokenId) public view override returns (string memory) {
-        require(exists(tokenId), "ZangNFT: uri query for nonexistent token");
+        require(exists(tokenId), "VinuNFT: uri query for nonexistent token");
         return uris[tokenId];
     }
 
@@ -41,7 +41,7 @@ contract VinuNFT is
         address royaltyRecipient_,
         bytes memory data_
     ) external returns (uint256) {
-        require(amount_ > 0, "ZangNFT: amount cannot be zero");
+        require(amount_ > 0, "VinuNFT: amount cannot be zero");
         lastTokenId++;
 
         uint256 newTokenId = lastTokenId;
@@ -56,7 +56,7 @@ contract VinuNFT is
     function burn(address _from, uint256 _tokenId, uint256 _amount) external {
         require(
             _from == msg.sender || isApprovedForAll(_from, msg.sender),
-            "ZangNFT: caller is not owner nor approved"
+            "VinuNFT: caller is not owner nor approved"
         );
         
         _burn(_from, _tokenId, _amount);
