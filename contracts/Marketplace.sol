@@ -41,6 +41,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         address _buyer,
         uint256 _listingId,
         uint256 _amount,
+        IERC20 _paymentToken,
         uint256 _price
     );
 
@@ -182,7 +183,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
             _delistToken(_nftAddress, _tokenId, _listingId);
         }
 
-        emit TokenPurchased(_nftAddress, _tokenId, seller, msg.sender, _listingId, _amount, price);
+        emit TokenPurchased(_nftAddress, _tokenId, seller, msg.sender, _listingId, _amount, paymentToken, price);
 
         _handleFunds(_nftAddress, _tokenId, seller, paymentToken, price * _amount);
         _nftAddress.safeTransferFrom(seller, msg.sender, _tokenId, _amount, "");
