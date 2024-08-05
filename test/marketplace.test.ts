@@ -212,14 +212,12 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 1);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 1);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
                     expect(listing.price).to.equal(price + 1);
-                    expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                    expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
                     expect(listing.amount).to.equal(2);
                 });
 
@@ -230,14 +228,13 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
 
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, -1, 1);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, -1, 1);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
                     expect(listing.price).to.equal(price + 1);
-                    expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                    expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
                     expect(listing.amount).to.equal(1);
                 });
 
@@ -250,14 +247,12 @@ describe("Marketplace", function () {
 
                     await nftContract.connect(alice).safeTransferFrom(alice.address, bob.address, tokenId, 1, Buffer.from(""));
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 3, 4);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 3, 4);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
                     expect(listing.price).to.equal(price + 1);
-                    expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                    expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
                     expect(listing.amount).to.equal(3);
                 });
 
@@ -270,12 +265,12 @@ describe("Marketplace", function () {
 
                     const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
 
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, -1);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, -1);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
                     expect(listing.price).to.equal(price + 1);
-                    expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                    expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
                     expect(listing.amount).to.equal(2);
                 });
 
@@ -286,14 +281,12 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, -1, -1);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, -1, -1);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
                     expect(listing.price).to.equal(price + 1);
-                    expect(listing.paymentToken).to.equal(await alternativeToken.getAddress());
+                    expect(listing.paymentToken).to.equal(await paymentToken.getAddress());
                     expect(listing.amount).to.equal(1);
                 });
 
@@ -302,10 +295,8 @@ describe("Marketplace", function () {
                     const price = 100;
                     await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, 1, await alternativeToken.getAddress(), price + 1, 2, 1)
+                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, 1, price + 1, 2, 1)
                     ).to.be.rejectedWith('Marketplace: can only edit own listings');
                 });
 
@@ -317,10 +308,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 1)
+                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 1)
                     ).to.be.rejectedWith('Marketplace: can only edit own listings');
                 });
 
@@ -332,10 +321,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 3)
+                        marketplace.connect(bob).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 3)
                     ).to.be.rejectedWith('Marketplace: can only edit own listings');
                 });
 
@@ -346,11 +333,10 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
                     await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), false);
 
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 1)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 1)
                     ).to.be.rejectedWith('Marketplace: Marketplace contract is not approved');
                 });
 
@@ -361,10 +347,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, 0)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 0)
                     ).to.be.rejectedWith('Marketplace: expected amount does not match');
                 });
 
@@ -375,10 +359,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, -2, 1)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, -2, 1)
                     ).to.be.rejectedWith('Marketplace: amount must be greater than 0 or equal to -1 for no change');
                 });
 
@@ -389,10 +371,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 0, 1)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 0, 1)
                     ).to.be.rejectedWith('Marketplace: amount must be greater than 0 or equal to -1 for no change');
                 });
 
@@ -403,10 +383,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), 0, 2, 1)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, 0, 2, 1)
                     ).to.be.rejectedWith('Marketplace: price must be greater than 0');
                 });
 
@@ -417,10 +395,8 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 2, -2)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, -2)
                     ).to.be.rejectedWith('Marketplace: expected amount must be greater than or equal to 0, or -1 for no check');
                 });
 
@@ -433,10 +409,8 @@ describe("Marketplace", function () {
 
                     await nftContract.connect(alice).safeTransferFrom(alice.address, bob.address, tokenId, 3, Buffer.from(""));
 
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price + 1, 3, 4)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 3, 4)
                     ).to.be.rejectedWith('Marketplace: not enough tokens to list');
                 });
             });
@@ -502,7 +476,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -526,7 +500,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -551,7 +525,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price * 2);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price * 2);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -575,7 +549,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(ZERO_ADDRESS);
@@ -599,7 +573,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price + 1);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price + 1);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -620,12 +594,12 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
 
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price - 1, 2, 2);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price - 1, 2, 2);
 
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -652,7 +626,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     const listing = await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId);
                     expect(listing.seller).to.equal(alice.address);
@@ -675,7 +649,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, 1, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, 1, 1, price)
                     ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
                 });
 
@@ -690,7 +664,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 0, await paymentToken.getAddress(), price)
+                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 0, price)
                     ).to.be.rejectedWith('Marketplace: _amount must be greater than 0');
                 });
 
@@ -704,13 +678,13 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
-                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price);
+                    await marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price);
 
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
                 });
 
@@ -727,7 +701,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: cannot interact with a non-existent listing');
                 });
 
@@ -738,33 +712,14 @@ describe("Marketplace", function () {
                     const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
                     await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
 
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price + 1, 2, 1);
+                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 2, 1);
 
                     await paymentToken.connect(bob).mint(price);
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: price too high');
-                });
-
-                it('fails to buy from a listing that had the payment token changed', async function () {
-                    const tokenId = await mintStandardNft(alice, { amount: 2 });
-                    const price = 100;
-                    await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
-                    const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
-                    await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
-
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
-                    await marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await alternativeToken.getAddress(), price, 2, 1);
-
-                    await paymentToken.connect(bob).mint(price);
-                    await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
-
-                    await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
-                    ).to.be.rejectedWith('Marketplace: payment token does not match');
                 });
 
                 it('fails to buy a token without having enough tokens', async function () {
@@ -778,7 +733,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price - 1);
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: not enough allowance');
                 });
 
@@ -793,7 +748,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price - 1);
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: not enough allowance');
                 });
 
@@ -808,25 +763,8 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price - 1)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price - 1)
                     ).to.be.rejectedWith('Marketplace: price too high');
-                });
-
-                it('fails to buy a token with an unexpected payment token', async function () {
-                    const tokenId = await mintStandardNft(alice, { amount: 2 });
-                    const price = 100;
-                    await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
-                    const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
-                    await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
-
-                    await paymentToken.connect(bob).mint(price);
-                    await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
-
-                    const alternativeToken = await (await hre.ethers.getContractFactory("MockERC20")).deploy();
-
-                    await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await alternativeToken.getAddress(), price)
-                    ).to.be.rejectedWith('Marketplace: payment token does not match');
                 });
 
                 it('fails to buy from an owned listing', async function () {
@@ -840,7 +778,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(alice).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.rejectedWith('Marketplace: cannot buy from yourself');
                 });
 
@@ -857,7 +795,7 @@ describe("Marketplace", function () {
                     await nftContract.connect(alice).safeTransferFrom(alice.address, charlie.address, tokenId, 4, Buffer.from(""));
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, price)
                     ).to.be.rejectedWith('Marketplace: seller does not have enough tokens');
                 });
 
@@ -874,7 +812,7 @@ describe("Marketplace", function () {
                     await nftContract.connect(alice).safeTransferFrom(alice.address, charlie.address, tokenId, 5, Buffer.from(""));
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 2, price)
                     ).to.be.rejectedWith('Marketplace: seller does not have enough tokens');
                 });
             });
@@ -924,7 +862,7 @@ describe("Marketplace", function () {
                     await marketplace.pause();
 
                     await expect(
-                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, await paymentToken.getAddress(), price + 1, 1, 1)
+                        marketplace.connect(alice).editListing(await nftContract.getAddress(), tokenId, listingId, price + 1, 1, 1)
                     ).to.be.revertedWithCustomError(marketplace, 'EnforcedPause');
                 });
 
@@ -959,7 +897,7 @@ describe("Marketplace", function () {
                     await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
 
                     await expect(
-                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, await paymentToken.getAddress(), price)
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price)
                     ).to.be.revertedWithCustomError(marketplace, 'EnforcedPause');
                 });
 
