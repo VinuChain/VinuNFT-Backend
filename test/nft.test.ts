@@ -36,9 +36,9 @@ function encodeTextURI(text: string) {
 }
 
 
-describe("ZangNFT", function () {
+describe("NFT", function () {
     describe("deployment", function () {
-        it("Should deploy ZangNFT", async function () {
+        it("deploys ZangNFT", async function () {
             const [deployer] = await hre.ethers.getSigners();
 
             const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
