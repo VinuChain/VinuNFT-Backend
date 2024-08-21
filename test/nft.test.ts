@@ -5,7 +5,7 @@ import {
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import hre from "hardhat";
-import { VinuNFT, ZangNFT, ZangNFT__factory } from "../typechain-types";
+import { VinuNFT, TextNFT, TextNFT__factory } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -38,30 +38,30 @@ function encodeTextURI(text: string) {
 
 describe("NFT", function () {
     describe("deployment", function () {
-        it("deploys ZangNFT", async function () {
+        it("deploys TextNFT", async function () {
             const [deployer] = await hre.ethers.getSigners();
 
-            const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
-            const zangNFT = await ZangNFT.deploy(
-                "ZangNFT",
+            const TextNFT = await hre.ethers.getContractFactory("TextNFT");
+            const textNFT = await TextNFT.deploy(
+                "TextNFT",
                 "ZNG",
-                "zang description",
-                "zang image uri",
-                "zang external link"
+                "text description",
+                "text image uri",
+                "text external link"
             );
-            expect(await zangNFT.name()).to.equal("ZangNFT");
-            expect(await zangNFT.symbol()).to.equal("ZNG");
-            expect(await zangNFT.description()).to.equal("zang description");
-            expect(await zangNFT.imageURI()).to.equal("zang image uri");
-            expect(await zangNFT.externalLink()).to.equal("zang external link");
+            expect(await textNFT.name()).to.equal("TextNFT");
+            expect(await textNFT.symbol()).to.equal("ZNG");
+            expect(await textNFT.description()).to.equal("text description");
+            expect(await textNFT.imageURI()).to.equal("text image uri");
+            expect(await textNFT.externalLink()).to.equal("text external link");
 
-            const contractURI = await zangNFT.contractURI();
+            const contractURI = await textNFT.contractURI();
 
             const parsedContractURI = parseContractURI(contractURI);
-            expect(parsedContractURI.name).to.equal("ZangNFT");
-            expect(parsedContractURI.description).to.equal("zang description");
-            expect(parsedContractURI.image).to.equal("zang image uri");
-            expect(parsedContractURI.external_link).to.equal("zang external link");
+            expect(parsedContractURI.name).to.equal("TextNFT");
+            expect(parsedContractURI.description).to.equal("text description");
+            expect(parsedContractURI.image).to.equal("text image uri");
+            expect(parsedContractURI.external_link).to.equal("text external link");
         });
 
         it('deploys VinuNFT', async function () {
@@ -71,9 +71,9 @@ describe("NFT", function () {
             const vinuNFT = await VinuNFT.deploy();
         });
     });
-    for (const nftType of ["vinu", "zang"]) {
+    for (const nftType of ["vinu", "text"]) {
         describe(`execution (${nftType})`, function () {
-            let nftContract: ZangNFT | VinuNFT;
+            let nftContract: TextNFT | VinuNFT;
             let deployer: HardhatEthersSigner;
             let alice: HardhatEthersSigner;
             let bob: HardhatEthersSigner;
@@ -88,13 +88,13 @@ describe("NFT", function () {
                     const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
                     nftContract = await VinuNFT.deploy();
                 } else {
-                    const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
-                    nftContract = await ZangNFT.deploy(
-                        "ZangNFT",
+                    const TextNFT = await hre.ethers.getContractFactory("TextNFT");
+                    nftContract = await TextNFT.deploy(
+                        "TextNFT",
                         "ZNG",
-                        "zang description",
-                        "zang image uri",
-                        "zang external link"
+                        "text description",
+                        "text image uri",
+                        "text external link"
                     );
                 }
             });
@@ -121,10 +121,10 @@ describe("NFT", function () {
                         Buffer.from("")
                     );
                 } else {
-                    await (nftContract as ZangNFT).connect(minter).mint(
+                    await (nftContract as TextNFT).connect(minter).mint(
                         encodeTextURI("Hello Bob"),
-                        "Zang Test",
-                        "Zang Description",
+                        "Text Test",
+                        "Text Description",
                         amount,
                         fee,
                         feeRecipient,
@@ -141,13 +141,13 @@ describe("NFT", function () {
 
                     expect(await nftContract.totalSupply()).to.equal(1);
                     expect(await nftContract.lastTokenId()).to.equal(1);
-                    //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
+                    //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
                     if (nftType === "vinu") {
                         const uri = await (nftContract as VinuNFT).uri(1);
                         expect(uri).to.equal("Hello Bob");
                     } else {
-                        const textURI = await (nftContract as ZangNFT).textURI(1);
+                        const textURI = await (nftContract as TextNFT).textURI(1);
                         const parsedText = parseTextURI(textURI);
                         expect(parsedText).to.equal("Hello Bob");
                     }
@@ -168,13 +168,13 @@ describe("NFT", function () {
 
                     expect(await nftContract.totalSupply()).to.equal(9);
                     expect(await nftContract.lastTokenId()).to.equal(1);
-                    //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
+                    //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
                     if (nftType === "vinu") {
                         const uri = await (nftContract as VinuNFT).uri(1);
                         expect(uri).to.equal("Hello Bob");
                     } else {
-                        const textURI = await (nftContract as ZangNFT).textURI(1);
+                        const textURI = await (nftContract as TextNFT).textURI(1);
                         const parsedText = parseTextURI(textURI);
                         expect(parsedText).to.equal("Hello Bob");
                     }
@@ -198,7 +198,7 @@ describe("NFT", function () {
 
                     expect(await nftContract.totalSupply()).to.equal(0);
                     expect(await nftContract.lastTokenId()).to.equal(1);
-                    //expect(await zangNFT.balanceOf(alice.address)).to.equal(1);
+                    //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
                     if (nftType === "vinu") {
                         await expect(
@@ -206,8 +206,8 @@ describe("NFT", function () {
                         ).to.be.rejectedWith("VinuNFT: uri query for nonexistent token");
                     } else {
                         await expect(
-                            (nftContract as ZangNFT).textURI(1)
-                        ).to.be.rejectedWith("ZangNFT: textURI query for nonexistent token");
+                            (nftContract as TextNFT).textURI(1)
+                        ).to.be.rejectedWith("TextNFT: textURI query for nonexistent token");
                     }
 
                     const royaltyInfo = await nftContract.royaltyInfo(1, 10000);

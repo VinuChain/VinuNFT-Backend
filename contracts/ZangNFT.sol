@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {StringUtils} from "./StringUtils.sol";
 
-contract ZangNFT is
+contract TextNFT is
     ERC1155Supply,
     ERC2981
 {
@@ -63,7 +63,7 @@ contract ZangNFT is
                         '"image": "', imageURI, '", '
                         '"external_link": "', externalLink, '"'
                         //'"seller_fee_basis_points" : ', Strings.toString(platformFeePercentage), ', '
-                        //'"fee_recipient": "', Strings.toHexString(uint256(uint160(zangCommissionAccount)), 20), '"'
+                        //'"fee_recipient": "', Strings.toHexString(uint256(uint160(textCommissionAccount)), 20), '"'
                         "}"
                     )
                 )
@@ -82,17 +82,17 @@ contract ZangNFT is
     }
 
     function nameOf(uint256 tokenId) public view returns (string memory) {
-        require(exists(tokenId), "ZangNFT: name query for nonexistent token");
+        require(exists(tokenId), "TextNFT: name query for nonexistent token");
         return _names[tokenId];
     }
 
     function descriptionOf(uint256 tokenId) public view returns (string memory) {
-        require(exists(tokenId), "ZangNFT: description query for nonexistent token");
+        require(exists(tokenId), "TextNFT: description query for nonexistent token");
         return _descriptions[tokenId];
     }
 
     function uri(uint256 tokenId) public view override returns (string memory) {
-        require(exists(tokenId), "ZangNFT: uri query for nonexistent token");
+        require(exists(tokenId), "TextNFT: uri query for nonexistent token");
         string memory json = Base64.encode(
             bytes(
                 string(
@@ -125,7 +125,7 @@ contract ZangNFT is
         address author = _authors[_tokenId];
         require(
             exists(_tokenId),
-            "ZangNFT: author query for nonexistent token"
+            "TextNFT: author query for nonexistent token"
         );
         return author;
     }
@@ -139,7 +139,7 @@ contract ZangNFT is
         address royaltyRecipient_,
         bytes memory data_
     ) external returns (uint256) {
-        require(amount_ > 0, "ZangNFT: amount cannot be zero");
+        require(amount_ > 0, "TextNFT: amount cannot be zero");
         _numTokenIds++;
 
         uint256 newTokenId = _numTokenIds;
@@ -166,7 +166,7 @@ contract ZangNFT is
     {
         require(
             exists(tokenId),
-            "ZangNFT: textURI query for nonexistent token"
+            "TextNFT: textURI query for nonexistent token"
         );
         return _textURIs[tokenId];
     }
@@ -174,7 +174,7 @@ contract ZangNFT is
     function burn(address _from, uint256 _tokenId, uint256 _amount) external {
         require(
             _from == msg.sender || isApprovedForAll(_from, msg.sender),
-            "ZangNFT: caller is not owner nor approved"
+            "TextNFT: caller is not owner nor approved"
         );
         
         _burn(_from, _tokenId, _amount);
@@ -191,9 +191,9 @@ contract ZangNFT is
     /*function decreaseRoyaltyNumerator(uint256 _tokenId, uint96 _lowerValue) external {
         require(
             exists(_tokenId),
-            "ZangNFT: decreasing royalty numerator for nonexistent token"
+            "TextNFT: decreasing royalty numerator for nonexistent token"
         ); // Opt.
-        require(msg.sender == authorOf(_tokenId), "ZangNFT: caller is not author");
+        require(msg.sender == authorOf(_tokenId), "TextNFT: caller is not author");
 
         _setTokenRoyalty(_tokenId, _lowerValue);
     }
@@ -201,7 +201,7 @@ contract ZangNFT is
     function royaltyNumerator(uint256 _tokenId) external view returns (uint96) {
         require(
             exists(_tokenId),
-            "ZangNFT: royalty info query for nonexistent token"
+            "TextNFT: royalty info query for nonexistent token"
         ); // Opt.
         return royaltyNumerator(_tokenId);
     }

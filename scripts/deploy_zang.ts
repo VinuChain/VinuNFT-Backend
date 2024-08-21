@@ -2,18 +2,18 @@ import hre from "hardhat";
 
 async function main() {
     // Get the contract factory
-    const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
+    const TextNFT = await hre.ethers.getContractFactory("TextNFT");
 
     // Deploy the contract
-    const zangNFT = await ZangNFT.deploy(
-        "ZangNFT",
+    const textNFT = await TextNFT.deploy(
+        "TextNFT",
         "ZNG",
-        "zang description",
-        "zang image uri",
-        "zang external link"
+        "text description",
+        "text image uri",
+        "text external link"
     );
 
-    console.log('Contract deployed to address:', await zangNFT.getAddress());
+    console.log('Contract deployed to address:', await textNFT.getAddress());
 }
 
 main()

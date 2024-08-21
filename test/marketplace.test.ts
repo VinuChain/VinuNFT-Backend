@@ -3,7 +3,7 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
-import { Marketplace, MockERC20, VinuNFT, ZangNFT } from "../typechain-types";
+import { Marketplace, MockERC20, VinuNFT, TextNFT } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -48,9 +48,9 @@ describe("Marketplace", function () {
             expect(await marketplace.commissionAccount()).to.equal(deployer.address);
         });
     })
-    for (const nftType of ["vinu", "zang"]) {
+    for (const nftType of ["vinu", "text"]) {
         describe(`execution (${nftType})`, function () {
-            let nftContract: ZangNFT | VinuNFT;
+            let nftContract: TextNFT | VinuNFT;
             let marketplace: Marketplace;
             let deployer: HardhatEthersSigner;
             let alice: HardhatEthersSigner;
@@ -70,13 +70,13 @@ describe("Marketplace", function () {
                     nftContract = await VinuNFT.deploy();
 
                 } else {
-                    const ZangNFT = await hre.ethers.getContractFactory("ZangNFT");
-                    nftContract = await ZangNFT.deploy(
-                        "ZangNFT",
+                    const TextNFT = await hre.ethers.getContractFactory("TextNFT");
+                    nftContract = await TextNFT.deploy(
+                        "TextNFT",
                         "ZNG",
-                        "zang description",
-                        "zang image uri",
-                        "zang external link"
+                        "text description",
+                        "text image uri",
+                        "text external link"
                     );
                 }
 
@@ -111,10 +111,10 @@ describe("Marketplace", function () {
                         Buffer.from("")
                     );
                 } else {
-                    await (nftContract as ZangNFT).connect(minter).mint(
+                    await (nftContract as TextNFT).connect(minter).mint(
                         encodeTextURI("Hello Bob"),
-                        "Zang Test",
-                        "Zang Description",
+                        "Text Test",
+                        "Text Description",
                         amount,
                         fee,
                         feeRecipient,
