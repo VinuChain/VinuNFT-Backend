@@ -152,6 +152,8 @@ describe("NFT", function () {
                         expect(parsedText).to.equal("Hello Bob");
                     }
 
+                    const author = await nftContract.authorOf(1);
+                    expect(author).to.equal(alice.address);
 
                     const royaltyInfo = await nftContract.royaltyInfo(1, 10000);
                     expect(royaltyInfo[0]).to.equal(bob.address);

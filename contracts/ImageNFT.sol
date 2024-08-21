@@ -14,6 +14,7 @@ contract ImageNFT is
     ERC2981
 {
     uint256 public lastTokenId;
+    mapping(uint256 => address) private _authors;
 
     mapping(uint256 => string) private uris;
 
@@ -49,8 +50,14 @@ contract ImageNFT is
         _setTokenRoyalty(newTokenId, royaltyRecipient_, royaltyNumerator_);
 
         _mint(msg.sender, newTokenId, amount_, data_);
+        _authors[newTokenId] = msg.sender;
 
         return newTokenId;
+    }
+
+    function authorOf(uint256 tokenId) public view returns (address) {
+        require(exists(tokenId), "ImageNFT: author query for nonexistent token");
+        return _authors[tokenId];
     }
 
     function burn(address _from, uint256 _tokenId, uint256 _amount) external {
@@ -63,6 +70,7 @@ contract ImageNFT is
 
         if(totalSupply(_tokenId) == 0) {
             delete uris[_tokenId];
+            delete _authors[_tokenId];
             _resetTokenRoyalty(_tokenId);
         }
     }
