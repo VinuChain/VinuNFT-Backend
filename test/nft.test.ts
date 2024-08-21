@@ -5,7 +5,7 @@ import {
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import hre from "hardhat";
-import { VinuNFT, TextNFT, TextNFT__factory } from "../typechain-types";
+import { ImageNFT, TextNFT, TextNFT__factory } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -64,16 +64,16 @@ describe("NFT", function () {
             expect(parsedContractURI.external_link).to.equal("text external link");
         });
 
-        it('deploys VinuNFT', async function () {
+        it('deploys ImageNFT', async function () {
             const [deployer] = await hre.ethers.getSigners();
 
-            const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
-            const vinuNFT = await VinuNFT.deploy();
+            const ImageNFT = await hre.ethers.getContractFactory("ImageNFT");
+            const imageNFT = await ImageNFT.deploy();
         });
     });
-    for (const nftType of ["vinu", "text"]) {
+    for (const nftType of ["image", "text"]) {
         describe(`execution (${nftType})`, function () {
-            let nftContract: TextNFT | VinuNFT;
+            let nftContract: TextNFT | ImageNFT;
             let deployer: HardhatEthersSigner;
             let alice: HardhatEthersSigner;
             let bob: HardhatEthersSigner;
@@ -84,9 +84,9 @@ describe("NFT", function () {
                 alice = a;
                 bob = b;
 
-                if (nftType === "vinu") {
-                    const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
-                    nftContract = await VinuNFT.deploy();
+                if (nftType === "image") {
+                    const ImageNFT = await hre.ethers.getContractFactory("ImageNFT");
+                    nftContract = await ImageNFT.deploy();
                 } else {
                     const TextNFT = await hre.ethers.getContractFactory("TextNFT");
                     nftContract = await TextNFT.deploy(
@@ -112,8 +112,8 @@ describe("NFT", function () {
                     fee = 0;
                 }
 
-                if (nftType === "vinu") {
-                    await (nftContract as VinuNFT).connect(minter).mint(
+                if (nftType === "image") {
+                    await (nftContract as ImageNFT).connect(minter).mint(
                         "Hello Bob",
                         amount,
                         fee,
@@ -143,8 +143,8 @@ describe("NFT", function () {
                     expect(await nftContract.lastTokenId()).to.equal(1);
                     //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
-                    if (nftType === "vinu") {
-                        const uri = await (nftContract as VinuNFT).uri(1);
+                    if (nftType === "image") {
+                        const uri = await (nftContract as ImageNFT).uri(1);
                         expect(uri).to.equal("Hello Bob");
                     } else {
                         const textURI = await (nftContract as TextNFT).textURI(1);
@@ -170,8 +170,8 @@ describe("NFT", function () {
                     expect(await nftContract.lastTokenId()).to.equal(1);
                     //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
-                    if (nftType === "vinu") {
-                        const uri = await (nftContract as VinuNFT).uri(1);
+                    if (nftType === "image") {
+                        const uri = await (nftContract as ImageNFT).uri(1);
                         expect(uri).to.equal("Hello Bob");
                     } else {
                         const textURI = await (nftContract as TextNFT).textURI(1);
@@ -200,10 +200,10 @@ describe("NFT", function () {
                     expect(await nftContract.lastTokenId()).to.equal(1);
                     //expect(await textNFT.balanceOf(alice.address)).to.equal(1);
 
-                    if (nftType === "vinu") {
+                    if (nftType === "image") {
                         await expect(
-                            (nftContract as VinuNFT).uri(1)
-                        ).to.be.rejectedWith("VinuNFT: uri query for nonexistent token");
+                            (nftContract as ImageNFT).uri(1)
+                        ).to.be.rejectedWith("ImageNFT: uri query for nonexistent token");
                     } else {
                         await expect(
                             (nftContract as TextNFT).textURI(1)

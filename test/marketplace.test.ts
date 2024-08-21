@@ -3,7 +3,7 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
-import { Marketplace, MockERC20, VinuNFT, TextNFT } from "../typechain-types";
+import { Marketplace, MockERC20, ImageNFT, TextNFT } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish } from "ethers";
 
@@ -48,9 +48,9 @@ describe("Marketplace", function () {
             expect(await marketplace.commissionAccount()).to.equal(deployer.address);
         });
     })
-    for (const nftType of ["vinu", "text"]) {
+    for (const nftType of ["image", "text"]) {
         describe(`execution (${nftType})`, function () {
-            let nftContract: TextNFT | VinuNFT;
+            let nftContract: TextNFT | ImageNFT;
             let marketplace: Marketplace;
             let deployer: HardhatEthersSigner;
             let alice: HardhatEthersSigner;
@@ -65,9 +65,9 @@ describe("Marketplace", function () {
                 bob = b;
                 charlie = c;
 
-                if (nftType === "vinu") {
-                    const VinuNFT = await hre.ethers.getContractFactory("VinuNFT");
-                    nftContract = await VinuNFT.deploy();
+                if (nftType === "image") {
+                    const ImageNFT = await hre.ethers.getContractFactory("ImageNFT");
+                    nftContract = await ImageNFT.deploy();
 
                 } else {
                     const TextNFT = await hre.ethers.getContractFactory("TextNFT");
@@ -102,8 +102,8 @@ describe("Marketplace", function () {
                     fee = 0;
                 }
 
-                if (nftType === "vinu") {
-                    await (nftContract as VinuNFT).connect(minter).mint(
+                if (nftType === "image") {
+                    await (nftContract as ImageNFT).connect(minter).mint(
                         encodeTextURI("Hello Bob"),
                         amount,
                         fee,
