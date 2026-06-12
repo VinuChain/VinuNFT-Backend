@@ -18,7 +18,7 @@ function parseContractURI(contractURI: string) {
     expect(contractURI).to.match(/^data:application\/json;base64,/);
     const data = contractURI.split(",")[1];
 
-    return JSON.parse(atob(data));
+    return JSON.parse(Buffer.from(data, "base64").toString("utf8"));
 }
 
 function encodeContractURI(data: any) {
@@ -62,6 +62,23 @@ describe("NFT", function () {
             expect(parsedContractURI.description).to.equal("text description");
             expect(parsedContractURI.image).to.equal("text image uri");
             expect(parsedContractURI.external_link).to.equal("text external link");
+        });
+
+        it("escapes contract metadata JSON for user-controlled strings", async function () {
+            const TextNFT = await hre.ethers.getContractFactory("TextNFT");
+            const textNFT = await TextNFT.deploy(
+                'Text "NFT" \\ snowman',
+                "ZNG",
+                "line one\nline two\tunicode: cafe",
+                "ipfs://image\\path",
+                "https://example.com/\"collection\""
+            );
+
+            const parsedContractURI = parseContractURI(await textNFT.contractURI());
+            expect(parsedContractURI.name).to.equal('Text "NFT" \\ snowman');
+            expect(parsedContractURI.description).to.equal("line one\nline two\tunicode: cafe");
+            expect(parsedContractURI.image).to.equal("ipfs://image\\path");
+            expect(parsedContractURI.external_link).to.equal('https://example.com/"collection"');
         });
 
         it('deploys ImageNFT', async function () {
@@ -159,6 +176,28 @@ describe("NFT", function () {
                     expect(royaltyInfo[0]).to.equal(bob.address);
                     expect(royaltyInfo[1]).to.equal(1000);
                 });
+
+                if (nftType === "text") {
+                    it("escapes token metadata JSON for UTF-8 and control characters", async function () {
+                        const textNFT = nftContract as TextNFT;
+                        const text = "Hello \"Bob\" \\ cafe\nsecond line";
+
+                        await textNFT.connect(alice).mint(
+                            encodeTextURI(text),
+                            'Story "One" \\ cafe',
+                            "Description with newline\nand tab\tcharacters",
+                            1,
+                            0,
+                            alice.address,
+                            Buffer.from("")
+                        );
+
+                        const parsedURI = parseContractURI(await textNFT.uri(1));
+                        expect(parsedURI.name).to.equal('Story "One" \\ cafe');
+                        expect(parsedURI.description).to.equal("Description with newline\nand tab\tcharacters");
+                        expect(parsedURI.text_uri).to.equal(encodeTextURI(text));
+                    });
+                }
             })
 
             describe("burn", function () {

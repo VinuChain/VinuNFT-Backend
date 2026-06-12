@@ -1,4 +1,15 @@
 {
+  "name": "vinunft-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VinuNFT Solidity contracts and marketplace deployment helpers.",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "size": "hardhat size-contracts"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",

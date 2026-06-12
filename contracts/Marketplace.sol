@@ -15,7 +15,7 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
     using SafeERC20 for IERC20;
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    int256 MAX_AMOUNT = 2**255 - 1; // Maximum value that can be stored in an int256
+    int256 public constant MAX_AMOUNT = type(int256).max;
 
     event TokenListed(
         IERC1155 indexed _nftAddress,

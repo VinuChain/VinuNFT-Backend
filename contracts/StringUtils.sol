@@ -1,73 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
-// import "hardhat/console.sol";
-
 /// [MIT License]
 library StringUtils {
-    function utfLength(bytes1 b) internal pure returns (uint8) {
-        if (b < 0x80) {
-            return 1;
-        } else if(b < 0xE0) {
-            return 2;
-        } else if(b < 0xF0) {
-            return 3;
-        } else if(b < 0xF8) {
-            return 4;
-        } else if(b < 0xFC) {
-            return 5;
-        } else {
-            return 6;
-        }
-    }
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
 
-    function firstN(bytes memory arr, uint256 n) internal pure returns (bytes memory) {
-        uint256 length = Math.min(n, arr.length);
-        bytes memory newArray = new bytes(length);
-        for (uint256 i = 0; i < length; i++) {
-            newArray[i] = arr[i];
-        }
+    function escapeJSONString(string memory value) internal pure returns (string memory) {
+        bytes memory input = bytes(value);
+        uint256 escapedLength = input.length;
 
-        return newArray;
-    }
-
-    function insertBeforeAscii(bytes memory str, bytes1 target, bytes1 insert) internal pure returns (bytes memory) {
-        // You can't insert something before a prefix byte (you technically could, but it would be really counter-intuitive)
-        require(utfLength(target) == 1, "StringUtils: target must be ASCII");
-        require(utfLength(insert) == 1, "StringUtils: insert must be ASCII");
-
-        for (uint256 i = 0; i < str.length; i++) {
-            if (utfLength(str[i]) + i > str.length) {
-                revert("StringUtils: not a valid UTF-8 string");
+        for (uint256 i = 0; i < input.length; i++) {
+            uint8 charCode = uint8(input[i]);
+            if (input[i] == 0x22 || input[i] == 0x5c) {
+                escapedLength += 1;
+            } else if (charCode < 0x20) {
+                escapedLength += 5;
             }
         }
 
-        bytes memory newString = new bytes(str.length * 2);
-        uint256 from = 0;
-        uint256 to = 0;
-        while (from < str.length) {
-            bytes1 b = str[from];
-            uint8 bLength = utfLength(b);
+        bytes memory output = new bytes(escapedLength);
+        uint256 cursor = 0;
 
-            if (bLength == 1 && b == target) {
-                // ASCII character that matches our target
-                newString[to] = insert;
-                to++;
+        for (uint256 i = 0; i < input.length; i++) {
+            uint8 charCode = uint8(input[i]);
+
+            if (input[i] == 0x22 || input[i] == 0x5c) {
+                output[cursor++] = 0x5c;
+                output[cursor++] = input[i];
+            } else if (charCode < 0x20) {
+                output[cursor++] = 0x5c;
+                output[cursor++] = 0x75;
+                output[cursor++] = 0x30;
+                output[cursor++] = 0x30;
+                output[cursor++] = _HEX_SYMBOLS[charCode >> 4];
+                output[cursor++] = _HEX_SYMBOLS[charCode & 0x0f];
+            } else {
+                output[cursor++] = input[i];
             }
-
-            for (uint8 j = 0; j < bLength; j++) {
-                newString[to + j] = str[from + j];
-            }
-
-            to += bLength;
-            from += bLength;
         }
 
-        return firstN(newString, to);
-    }
-
-    function insertBeforeAsciiString(string memory str, bytes1 target, bytes1 insert) internal pure returns (string memory) {
-        return string(insertBeforeAscii(bytes(str), target, insert));
+        return string(output);
     }
 }

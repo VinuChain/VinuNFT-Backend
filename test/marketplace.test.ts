@@ -47,6 +47,14 @@ describe("Marketplace", function () {
 
             expect(await marketplace.commissionAccount()).to.equal(deployer.address);
         });
+
+        it("rejects a zero commission account", async function () {
+            const Marketplace = await hre.ethers.getContractFactory("Marketplace");
+
+            await expect(
+                Marketplace.deploy(ZERO_ADDRESS)
+            ).to.be.revertedWith("NFTCommissions: commission account cannot be zero address");
+        });
     })
     for (const nftType of ["image", "text"]) {
         describe(`execution (${nftType})`, function () {
@@ -922,27 +930,49 @@ describe("Marketplace", function () {
 
             describe('commissions', function () {
                 it('sets the commission account', async function () {
-                    await marketplace.setCommissionAccount(alice.address);
+                    await expect(
+                        marketplace.setCommissionAccount(alice.address)
+                    ).to.emit(marketplace, "CommissionAccountChanged").withArgs(deployer.address, alice.address);
 
                     expect(await marketplace.commissionAccount()).to.equal(alice.address);
                 });
 
+                it('rejects a zero commission account', async function () {
+                    await expect(
+                        marketplace.setCommissionAccount(ZERO_ADDRESS)
+                    ).to.be.revertedWith("NFTCommissions: commission account cannot be zero address");
+                });
+
                 it('decreases the platform commission', async function () {
-                    await marketplace.decreasePlatformFeePercentage(100); // 1%
+                    await expect(
+                        marketplace.decreasePlatformFeePercentage(100)
+                    ).to.emit(marketplace, "PlatformFeePercentageDecreased").withArgs(500, 100);
 
                     expect(await marketplace.platformFeePercentage()).to.equal(100);
                 });
 
                 it('increases the platform commission after waiting', async function () {
-                    await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+                    const requestTx = await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+                    const lock = await marketplace.lock();
+                    await expect(requestTx)
+                        .to.emit(marketplace, "PlatformFeePercentageIncreaseRequested")
+                        .withArgs(500, 2000, lock);
                     expect(await marketplace.newPlatformFeePercentage()).to.equal(2000);
 
                     await time.setNextBlockTimestamp((await time.latest()) + 3600 * 24 * 7); // 1 week
 
-                    await marketplace.applyPlatformFeePercentageIncrease();
+                    await expect(
+                        marketplace.applyPlatformFeePercentageIncrease()
+                    ).to.emit(marketplace, "PlatformFeePercentageIncreaseApplied").withArgs(500, 2000);
                     expect(await marketplace.platformFeePercentage()).to.equal(2000);
                     expect(await marketplace.newPlatformFeePercentage()).to.equal(0);
                     expect(await marketplace.lock()).to.equal(0);
+                });
+
+                it('rejects platform commission increases above 10000 basis points', async function () {
+                    await expect(
+                        marketplace.requestPlatformFeePercentageIncrease(10001)
+                    ).to.be.revertedWith('NFTCommissions: platform fee percentage cannot exceed 10000 basis points');
                 });
 
                 it('fails to increase the platform commission without first requesting it', async function () {

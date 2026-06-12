@@ -5,7 +5,6 @@ import {Base64} from "./MetadataUtils.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Pausable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {StringUtils} from "./StringUtils.sol";
 
@@ -54,16 +53,14 @@ contract TextNFT is
                     abi.encodePacked(
                         '{',
                         '"name": "',
-                        StringUtils.insertBeforeAsciiString(name, '"', '\\'),
+                        StringUtils.escapeJSONString(name),
                         '", ',
                         '"description": ',
                         '"',
-                        StringUtils.insertBeforeAsciiString(description, '"', '\\'),
+                        StringUtils.escapeJSONString(description),
                         '", ',
-                        '"image": "', imageURI, '", '
-                        '"external_link": "', externalLink, '"'
-                        //'"seller_fee_basis_points" : ', Strings.toString(platformFeePercentage), ', '
-                        //'"fee_recipient": "', Strings.toHexString(uint256(uint160(textCommissionAccount)), 20), '"'
+                        '"image": "', StringUtils.escapeJSONString(imageURI), '", '
+                        '"external_link": "', StringUtils.escapeJSONString(externalLink), '"'
                         "}"
                     )
                 )
@@ -98,16 +95,15 @@ contract TextNFT is
                 string(
                     abi.encodePacked(
                         '{ "name": "',
-                        StringUtils.insertBeforeAsciiString(_names[tokenId], '"', '\\'),
+                        StringUtils.escapeJSONString(_names[tokenId]),
                         '", ',
                         '"description" : ',
                         '"',
-                        StringUtils.insertBeforeAsciiString(_descriptions[tokenId], '"', '\\'),
+                        StringUtils.escapeJSONString(_descriptions[tokenId]),
                         '", ',
-                        //'"image": "data:image/svg+xml;base64,', Base64.encode(bytes(output)), '", '
                         '"text_uri" : ',
                         '"',
-                        textURI(tokenId),
+                        StringUtils.escapeJSONString(textURI(tokenId)),
                         '"',
                         "}"
                     )

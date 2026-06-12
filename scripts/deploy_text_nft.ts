@@ -1,16 +1,23 @@
 import hre from "hardhat";
 
+function requiredValue(name: string): string {
+    const value = process.env[name];
+    if (!value || value.trim().length === 0) {
+        throw new Error(`${name} must be set`);
+    }
+
+    return value;
+}
+
 async function main() {
-    // Get the contract factory
     const TextNFT = await hre.ethers.getContractFactory("TextNFT");
 
-    // Deploy the contract
     const textNFT = await TextNFT.deploy(
-        "TextNFT",
-        "ZNG",
-        "text description",
-        "text image uri",
-        "text external link"
+        requiredValue("TEXT_NFT_NAME"),
+        requiredValue("TEXT_NFT_SYMBOL"),
+        requiredValue("TEXT_NFT_DESCRIPTION"),
+        requiredValue("TEXT_NFT_IMAGE_URI"),
+        requiredValue("TEXT_NFT_EXTERNAL_LINK")
     );
 
     console.log('Contract deployed to address:', await textNFT.getAddress());

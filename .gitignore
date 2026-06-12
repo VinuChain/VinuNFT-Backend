@@ -1,5 +1,6 @@
 node_modules
 .env
+.omx/
 
 # Hardhat files
 /cache
