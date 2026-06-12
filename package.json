@@ -35,5 +35,8 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2"
+  },
+  "resolutions": {
+    "axios": "^1.16.0"
   }
 }
