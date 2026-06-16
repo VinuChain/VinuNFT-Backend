@@ -93,8 +93,6 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing ID out of bounds"); // Opt.
         require(_amount == -1 || _amount <= int256(_nftAddress.balanceOf(msg.sender, _tokenId)), "Marketplace: not enough tokens to list");
         require(_amount > 0 || _amount == -1, "Marketplace: amount must be greater than 0 or equal to -1 for no change");
-        // Somewhat redundant, since MAX_AMOUNT is the maximum value that can be stored in an int256
-        require(_amount <= MAX_AMOUNT, "Marketplace: amount must be less than or equal to MAX_AMOUNT");
         require(_price > 0, "Marketplace: price must be greater than 0");
 
         //require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: listing does not exist"); // Opt.

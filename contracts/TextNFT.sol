@@ -184,25 +184,4 @@ contract TextNFT is
         }
     }
 
-    /*function decreaseRoyaltyNumerator(uint256 _tokenId, uint96 _lowerValue) external {
-        require(
-            exists(_tokenId),
-            "TextNFT: decreasing royalty numerator for nonexistent token"
-        ); // Opt.
-        require(msg.sender == authorOf(_tokenId), "TextNFT: caller is not author");
-
-        _setTokenRoyalty(_tokenId, _lowerValue);
-    }
-
-    function royaltyNumerator(uint256 _tokenId) external view returns (uint96) {
-        require(
-            exists(_tokenId),
-            "TextNFT: royalty info query for nonexistent token"
-        ); // Opt.
-        return royaltyNumerator(_tokenId);
-    }
-
-    function royaltyDenominator() external pure returns (uint96) {
-        return _feeDenominator();
-    }*/
 }
