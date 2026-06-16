@@ -8,7 +8,7 @@ Solidity contracts and Hardhat tooling for VinuNFT on VinuChain. The suite inclu
 
 ## Requirements
 
-- Node.js 20
+- Node.js 22
 - Yarn 1.x
 - A funded VinuChain deployer key for testnet/mainnet deployment
 
