@@ -17,4 +17,44 @@ jobs:
           node-version: 22
       - run: yarn install --frozen-lockfile
       - run: yarn compile
+      - run: yarn lint
       - run: yarn test
+      # Run coverage and enforce minimums (~5pp below plan-002 baseline):
+      #   statements >= 85, branches >= 75, functions >= 82, lines >= 88
+      # Ratchet these thresholds upward as test coverage improves.
+      - name: Coverage
+        run: yarn coverage 2>&1 | tee /tmp/coverage-output.txt
+      - name: Enforce coverage thresholds
+        run: |
+          # Extract the "All files" summary row and check each metric.
+          # Expected format: All files | 89.47 | 79.75 | 87.27 | 92.20 |
+          SUMMARY=$(grep -E "^All files" /tmp/coverage-output.txt | head -1)
+          echo "Coverage summary: $SUMMARY"
+          STMTS=$(echo "$SUMMARY"  | awk -F'|' '{gsub(/ /,"",$2); print $2}')
+          BRANCH=$(echo "$SUMMARY" | awk -F'|' '{gsub(/ /,"",$3); print $3}')
+          FUNCS=$(echo "$SUMMARY"  | awk -F'|' '{gsub(/ /,"",$4); print $4}')
+          LINES=$(echo "$SUMMARY"  | awk -F'|' '{gsub(/ /,"",$5); print $5}')
+          echo "  Statements : $STMTS  (min 85)"
+          echo "  Branches   : $BRANCH (min 75)"
+          echo "  Functions  : $FUNCS  (min 82)"
+          echo "  Lines      : $LINES  (min 88)"
+          awk -v s="$STMTS"  'BEGIN{if(s+0 < 85){print "FAIL: statements " s " < 85"; exit 1}}'
+          awk -v b="$BRANCH" 'BEGIN{if(b+0 < 75){print "FAIL: branches "   b " < 75"; exit 1}}'
+          awk -v f="$FUNCS"  'BEGIN{if(f+0 < 82){print "FAIL: functions "  f " < 82"; exit 1}}'
+          awk -v l="$LINES"  'BEGIN{if(l+0 < 88){print "FAIL: lines "      l " < 88"; exit 1}}'
+          echo "All coverage thresholds passed."
+
+  slither:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # non-blocking: surfaces findings without breaking pipeline
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: yarn install --frozen-lockfile
+      - run: yarn compile
+      - uses: crytic/slither-action@v0.4.1
+        with:
+          hardhat-artifacts-path: artifacts
+          slither-args: "--exclude-dependencies"
