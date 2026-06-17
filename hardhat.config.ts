@@ -6,14 +6,15 @@ const vinuChainRpcUrl = process.env.VINUCHAIN_RPC_URL;
 const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
 const vinuChainId = Number(process.env.VINUCHAIN_CHAIN_ID || "207");
 
-// Explorer verification env vars:
-//   VINUCHAIN_EXPLORER_API_URL  — e.g. https://explorer.vinuchain.org/api
-//   VINUCHAIN_EXPLORER_URL      — e.g. https://explorer.vinuchain.org
-//   VINUCHAIN_EXPLORER_API_KEY  — API key if required (may be any non-empty string)
-// TODO: confirm the VinuChain explorer verify API endpoint and update these values.
-const vinuChainExplorerApiUrl = process.env.VINUCHAIN_EXPLORER_API_URL || "https://explorer.vinuchain.org/api";
-const vinuChainExplorerUrl = process.env.VINUCHAIN_EXPLORER_URL || "https://explorer.vinuchain.org";
-const vinuChainExplorerApiKey = process.env.VINUCHAIN_EXPLORER_API_KEY || "placeholder";
+// Explorer verification env vars (override for testnet, chainId 206, https://testnet.vinuscan.com):
+//   VINUCHAIN_EXPLORER_API_URL  — Blockscout Etherscan-compatible /api endpoint
+//   VINUCHAIN_EXPLORER_URL      — browser URL shown in verify output
+//   VINUCHAIN_EXPLORER_API_KEY  — Blockscout accepts any non-empty string; no secret required
+// VinuScan is Blockscout-based; apiURL uses Blockscout's Etherscan-compatible /api route.
+// Values sourced from VinuScan-Frontend src/config/networks.js; confirm on first real `hardhat verify`.
+const vinuChainExplorerApiUrl = process.env.VINUCHAIN_EXPLORER_API_URL || "https://vinuscan.com/api";
+const vinuChainExplorerUrl = process.env.VINUCHAIN_EXPLORER_URL || "https://vinuscan.com";
+const vinuChainExplorerApiKey = process.env.VINUCHAIN_EXPLORER_API_KEY || "vinuscan";
 
 const config: HardhatUserConfig = {
   solidity: {
