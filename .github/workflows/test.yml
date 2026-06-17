@@ -60,7 +60,11 @@ jobs:
       # findings (fix or annotate with justification), do not relax the threshold.
       - uses: crytic/slither-action@v0.4.1
         with:
-          hardhat-artifacts-path: artifacts
+          # Reuse the node-22 `yarn compile` artifacts above instead of recompiling
+          # inside the action's Python<3.10 container. (The prior
+          # `hardhat-artifacts-path` input is not defined by this action and was
+          # silently ignored.)
+          ignore-compile: true
           slither-config: slither.config.json
           fail-on: medium
           slither-version: 0.11.4
