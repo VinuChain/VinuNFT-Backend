@@ -19,6 +19,7 @@ library Base64 {
         string memory table = TABLE_ENCODE;
 
         // multiply by 4/3 rounded up
+        // slither-disable-next-line divide-before-multiply -- standard Base64 length math; integer rounding is intentional
         uint256 encodedLen = 4 * ((data.length + 2) / 3);
 
         // add some extra buffer at the end required for the writing
@@ -75,6 +76,7 @@ library Base64 {
         bytes memory table = TABLE_DECODE;
 
         // every 4 characters represent 3 bytes
+        // slither-disable-next-line divide-before-multiply -- standard Base64 length math; integer rounding is intentional
         uint256 decodedLen = (data.length / 4) * 3;
 
         // add some extra buffer at the end required for the writing

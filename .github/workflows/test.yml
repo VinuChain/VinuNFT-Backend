@@ -46,7 +46,6 @@ jobs:
 
   slither:
     runs-on: ubuntu-latest
-    continue-on-error: true  # non-blocking: surfaces findings without breaking pipeline
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -54,7 +53,19 @@ jobs:
           node-version: 22
       - run: yarn install --frozen-lockfile
       - run: yarn compile
+      # Blocking gate: fail the build on Medium+ findings. The committed
+      # slither.config.json scopes out test helpers and excludes dependencies;
+      # the four production false-positives are inline // slither-disable-next-line
+      # annotated with rationale. Keep the baseline clean — triage new Medium+
+      # findings (fix or annotate with justification), do not relax the threshold.
       - uses: crytic/slither-action@v0.4.1
         with:
-          hardhat-artifacts-path: artifacts
+          # Reuse the node-22 `yarn compile` artifacts above instead of recompiling
+          # inside the action's Python<3.10 container. (The prior
+          # `hardhat-artifacts-path` input is not defined by this action and was
+          # silently ignored.)
+          ignore-compile: true
+          slither-config: slither.config.json
+          fail-on: medium
+          slither-version: 0.11.4
           slither-args: "--exclude-dependencies"

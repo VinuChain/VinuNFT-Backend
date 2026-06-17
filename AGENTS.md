@@ -25,6 +25,30 @@ and `optimizer { enabled: true, runs: 200 }`. All first-party contracts declare
 change the compiler version without updating all pragmas and re-running
 `yarn compile && yarn test`.
 
+## Static analysis (Slither)
+
+CI runs Slither as a **blocking gate** (`.github/workflows/test.yml`, `slither` job)
+that fails the build on **Medium or High** severity findings. Configuration lives in
+`slither.config.json` (scopes out `contracts/test/` helpers, excludes dependencies,
+`fail_on: medium`). The current baseline is clean at Medium+; remaining output is
+Low/Informational (naming style, benign reentrancy in OZ-standard mint/burn, etc.).
+
+Four production false-positives are suppressed inline with `// slither-disable-next-line`
+plus a rationale comment:
+- `MetadataUtils.sol` Base64 encode/decode `divide-before-multiply` — standard Base64
+  length math; the integer rounding is intentional.
+- `Marketplace._handleFunds` `uninitialized-local` (creator, creatorFee) — intentional
+  default-zero, guarded by the `if (creatorFee > 0)` / ERC2981 branch.
+
+The CI job pins the analyzer to **`slither-version: 0.11.4`** — the highest version
+installable in the `crytic/slither-action@v0.4.1` Python<3.10 container, and the version
+the clean baseline was verified against. When bumping the version, re-run the full local
+check and re-triage any new findings before raising the pin; do not bump it silently.
+
+Run locally: `nvm use 22 && yarn install --frozen-lockfile && yarn compile &&
+slither . --config-file slither.config.json`. It must exit 0. When you add a new
+Medium+ finding, fix it or annotate it with justification — do not lower the threshold.
+
 ## Production deployment rule
 
 **Never use the deployer key as the commission account.**

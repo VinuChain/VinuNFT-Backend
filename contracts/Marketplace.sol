@@ -135,7 +135,11 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
 
         uint256 remainder = value - platformFee;
 
+        // creator/creatorFee intentionally default to zero; only populated when the
+        // NFT supports ERC2981 below, and creator is only used inside the if(creatorFee > 0) guard.
+        // slither-disable-next-line uninitialized-local
         address creator;
+        // slither-disable-next-line uninitialized-local
         uint256 creatorFee;
 
         if (_nftAddress.supportsInterface(_INTERFACE_ID_ERC2981)) {
