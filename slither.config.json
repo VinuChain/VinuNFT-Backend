@@ -1,0 +1,5 @@
+{
+  "filter_paths": "contracts/test/",
+  "exclude_dependencies": true,
+  "fail_on": "medium"
+}
