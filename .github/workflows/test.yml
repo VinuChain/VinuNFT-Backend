@@ -63,4 +63,5 @@ jobs:
           hardhat-artifacts-path: artifacts
           slither-config: slither.config.json
           fail-on: medium
+          slither-version: 0.11.4
           slither-args: "--exclude-dependencies"
