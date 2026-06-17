@@ -19,8 +19,8 @@ jobs:
       - run: yarn compile
       - run: yarn lint
       - run: yarn test
-      # Run coverage and enforce minimums (~5pp below plan-002 baseline):
-      #   statements >= 85, branches >= 75, functions >= 82, lines >= 88
+      # Run coverage and enforce minimums (~2pp below plan-002 baseline):
+      #   statements >= 87, branches >= 78, functions >= 85, lines >= 90
       # Ratchet these thresholds upward as test coverage improves.
       - name: Coverage
         run: yarn coverage 2>&1 | tee /tmp/coverage-output.txt
@@ -34,14 +34,14 @@ jobs:
           BRANCH=$(echo "$SUMMARY" | awk -F'|' '{gsub(/ /,"",$3); print $3}')
           FUNCS=$(echo "$SUMMARY"  | awk -F'|' '{gsub(/ /,"",$4); print $4}')
           LINES=$(echo "$SUMMARY"  | awk -F'|' '{gsub(/ /,"",$5); print $5}')
-          echo "  Statements : $STMTS  (min 85)"
-          echo "  Branches   : $BRANCH (min 75)"
-          echo "  Functions  : $FUNCS  (min 82)"
-          echo "  Lines      : $LINES  (min 88)"
-          awk -v s="$STMTS"  'BEGIN{if(s+0 < 85){print "FAIL: statements " s " < 85"; exit 1}}'
-          awk -v b="$BRANCH" 'BEGIN{if(b+0 < 75){print "FAIL: branches "   b " < 75"; exit 1}}'
-          awk -v f="$FUNCS"  'BEGIN{if(f+0 < 82){print "FAIL: functions "  f " < 82"; exit 1}}'
-          awk -v l="$LINES"  'BEGIN{if(l+0 < 88){print "FAIL: lines "      l " < 88"; exit 1}}'
+          echo "  Statements : $STMTS  (min 87)"
+          echo "  Branches   : $BRANCH (min 78)"
+          echo "  Functions  : $FUNCS  (min 85)"
+          echo "  Lines      : $LINES  (min 90)"
+          awk -v s="$STMTS"  'BEGIN{if(s+0 < 87){print "FAIL: statements " s " < 87"; exit 1}}'
+          awk -v b="$BRANCH" 'BEGIN{if(b+0 < 78){print "FAIL: branches "   b " < 78"; exit 1}}'
+          awk -v f="$FUNCS"  'BEGIN{if(f+0 < 85){print "FAIL: functions "  f " < 85"; exit 1}}'
+          awk -v l="$LINES"  'BEGIN{if(l+0 < 90){print "FAIL: lines "      l " < 90"; exit 1}}'
           echo "All coverage thresholds passed."
 
   slither:
