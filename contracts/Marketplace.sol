@@ -136,7 +136,8 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         uint256 remainder = value - platformFee;
 
         // creator/creatorFee intentionally default to zero; only populated when the
-        // NFT supports ERC2981 below, and creator is only used inside the if(creatorFee > 0) guard.
+        // NFT supports ERC2981 below, and creator is only used inside the
+        // if(creatorFee > 0 && creator != address(0)) guard.
         // slither-disable-next-line uninitialized-local
         address creator;
         // slither-disable-next-line uninitialized-local
@@ -146,9 +147,24 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
             (creator, creatorFee) = IERC2981(address(_nftAddress)).royaltyInfo(_tokenId, remainder);
         }
 
+        // Defensive bounds on externally-supplied ERC2981 royalty data:
+        // clamp an oversized fee to the available remainder (a malicious NFT could
+        // otherwise return creatorFee > remainder and revert every sale via underflow),
+        // and skip a zero-address payout (avoid burning the royalty / reverting on a
+        // transfer to address(0)). When skipped, the fee stays with the seller.
+        //
+        // The cap is `remainder` rather than a tighter fraction by design: a 100%
+        // royalty is already valid under ERC2981 (numerator may equal the 10000
+        // denominator), so clamping here introduces no new maximum. Sellers choose
+        // which NFT to list and accept its royalty terms; a configurable max-royalty
+        // policy, if ever desired, is a separate governance concern.
+        if (creatorFee > remainder) {
+            creatorFee = remainder;
+        }
+
         uint256 sellerEarnings = remainder;
 
-        if(creatorFee > 0) {
+        if (creatorFee > 0 && creator != address(0)) {
             sellerEarnings -= creatorFee;
 
             _paymentToken.safeTransferFrom(msg.sender, creator, creatorFee);

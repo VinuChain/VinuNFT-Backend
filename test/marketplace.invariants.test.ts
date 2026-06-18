@@ -8,6 +8,7 @@ import {
     ReturnsFalseERC20,
     RevertingERC20,
     ReentrantERC1155Receiver,
+    MockRoyaltyNFT,
 } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -373,6 +374,135 @@ describe("Marketplace invariants", function () {
                     await nftContract.getAddress(), tokenId, listingId, 1, price
                 )
             ).to.be.revertedWith("blocked");
+        });
+    });
+
+    // ------------------------------------------------------------------ //
+    //  6. Adversarial royalty NFT (malformed ERC2981 data)               //
+    // ------------------------------------------------------------------ //
+
+    describe("adversarial royalty NFT", function () {
+        // price=100 → platformFee = 100 * 500 / 10000 = 5, remainder = 95.
+        const price = 100n;
+        const platformFee = 5n;
+        const remainder = price - platformFee; // 95n
+
+        // Mint a MockRoyaltyNFT to `minter`, return its token id.
+        async function mintRoyaltyNft(
+            nft: MockRoyaltyNFT,
+            minter: HardhatEthersSigner,
+            amount: number
+        ): Promise<bigint> {
+            await nft.connect(minter).mint(amount);
+            return await nft.lastTokenId();
+        }
+
+        let royaltyNft: MockRoyaltyNFT;
+        let tokenId: bigint;
+        let listingId: bigint;
+
+        beforeEach(async function () {
+            const MockRoyaltyNFTFactory = await hre.ethers.getContractFactory("MockRoyaltyNFT");
+            royaltyNft = await MockRoyaltyNFTFactory.deploy();
+
+            // alice mints and lists 1 copy for `price`, paid in paymentToken.
+            tokenId = await mintRoyaltyNft(royaltyNft, alice, 1);
+            await royaltyNft.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+            listingId = await marketplace.listingCount(await royaltyNft.getAddress(), tokenId);
+            await marketplace
+                .connect(alice)
+                .listToken(await royaltyNft.getAddress(), tokenId, await paymentToken.getAddress(), price, 1);
+
+            // bob funds and approves the purchase.
+            await paymentToken.connect(bob).mint(price);
+            await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+        });
+
+        it("zero-address creator with nonzero fee: sale succeeds, fee stays with the seller, nothing sent to address(0)", async function () {
+            // Malformed ERC2981: a nonzero royalty owed to address(0).
+            await royaltyNft.setRoyalty(ZERO_ADDRESS, 40n);
+
+            const sellerBefore = await paymentToken.balanceOf(alice.address);
+            const commissionBefore = await paymentToken.balanceOf(deployer.address);
+            const zeroBefore = await paymentToken.balanceOf(ZERO_ADDRESS);
+
+            // Must NOT revert (a transfer to address(0) would).
+            await marketplace.connect(bob).buyToken(
+                await royaltyNft.getAddress(), tokenId, listingId, 1, price
+            );
+
+            const sellerDelta = (await paymentToken.balanceOf(alice.address)) - sellerBefore;
+            const commissionDelta = (await paymentToken.balanceOf(deployer.address)) - commissionBefore;
+            const zeroDelta = (await paymentToken.balanceOf(ZERO_ADDRESS)) - zeroBefore;
+
+            // Royalty skipped: seller receives the full remainder, platform fee paid.
+            expect(sellerDelta).to.equal(remainder, "seller should receive the full remainder");
+            expect(commissionDelta).to.equal(platformFee, "platform fee should be paid");
+            // Nothing burned to address(0).
+            expect(zeroDelta).to.equal(0n, "no payment should be sent to address(0)");
+            // Buyer received the NFT.
+            expect(await royaltyNft.balanceOf(bob.address, tokenId)).to.equal(1n);
+            // Legs still sum to price.
+            expect(sellerDelta + commissionDelta).to.equal(price, "legs should sum to price");
+            // No wei stranded in the marketplace.
+            expect(await paymentToken.balanceOf(await marketplace.getAddress())).to.equal(0n);
+        });
+
+        it("oversized fee: sale succeeds, royalty is clamped to the remainder, seller receives 0", async function () {
+            // Malformed ERC2981: an absolute fee larger than the remainder.
+            // Without the clamp this underflows (remainder - creatorFee) and reverts every sale.
+            const oversized = remainder + 100n; // 195n > 95n
+            await royaltyNft.setRoyalty(charlie.address, oversized);
+
+            const sellerBefore = await paymentToken.balanceOf(alice.address);
+            const commissionBefore = await paymentToken.balanceOf(deployer.address);
+            const creatorBefore = await paymentToken.balanceOf(charlie.address);
+
+            // Must NOT revert (an unclamped underflow would).
+            await marketplace.connect(bob).buyToken(
+                await royaltyNft.getAddress(), tokenId, listingId, 1, price
+            );
+
+            const sellerDelta = (await paymentToken.balanceOf(alice.address)) - sellerBefore;
+            const commissionDelta = (await paymentToken.balanceOf(deployer.address)) - commissionBefore;
+            const creatorDelta = (await paymentToken.balanceOf(charlie.address)) - creatorBefore;
+
+            // Fee clamped to the remainder; seller gets nothing; platform fee still paid.
+            expect(creatorDelta).to.equal(remainder, "creator fee should be clamped to the remainder");
+            expect(sellerDelta).to.equal(0n, "seller should receive 0 when the fee consumes the remainder");
+            expect(commissionDelta).to.equal(platformFee, "platform fee should be paid");
+            // Buyer received the NFT.
+            expect(await royaltyNft.balanceOf(bob.address, tokenId)).to.equal(1n);
+            // Legs still sum to price.
+            expect(sellerDelta + commissionDelta + creatorDelta).to.equal(price, "legs should sum to price");
+            // No wei stranded in the marketplace.
+            expect(await paymentToken.balanceOf(await marketplace.getAddress())).to.equal(0n);
+        });
+
+        it("regression: an in-bounds royalty still splits correctly between creator and seller", async function () {
+            // Well-formed: an absolute fee below the remainder.
+            const fee = 40n;
+            await royaltyNft.setRoyalty(charlie.address, fee);
+
+            const sellerBefore = await paymentToken.balanceOf(alice.address);
+            const commissionBefore = await paymentToken.balanceOf(deployer.address);
+            const creatorBefore = await paymentToken.balanceOf(charlie.address);
+
+            await marketplace.connect(bob).buyToken(
+                await royaltyNft.getAddress(), tokenId, listingId, 1, price
+            );
+
+            const sellerDelta = (await paymentToken.balanceOf(alice.address)) - sellerBefore;
+            const commissionDelta = (await paymentToken.balanceOf(deployer.address)) - commissionBefore;
+            const creatorDelta = (await paymentToken.balanceOf(charlie.address)) - creatorBefore;
+
+            expect(creatorDelta).to.equal(fee, "creator should receive the royalty");
+            expect(sellerDelta).to.equal(remainder - fee, "seller should receive remainder minus royalty");
+            expect(commissionDelta).to.equal(platformFee, "platform fee should be paid");
+            // Legs still sum to price.
+            expect(sellerDelta + commissionDelta + creatorDelta).to.equal(price, "legs should sum to price");
+            // No wei stranded in the marketplace.
+            expect(await paymentToken.balanceOf(await marketplace.getAddress())).to.equal(0n);
         });
     });
 });
