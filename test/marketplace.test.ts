@@ -498,6 +498,21 @@ describe("Marketplace", function () {
                     expect(await paymentToken.balanceOf(bob.address)).to.equal(0);
                 });
 
+                it('rejects native value on ERC-20 purchases', async function () {
+                    const tokenId = await mintStandardNft(alice, { amount: 2 });
+                    const price = 100;
+                    await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                    const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
+                    await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                    await paymentToken.connect(bob).mint(price);
+                    await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                    await expect(
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price, { value: 1 })
+                    ).to.be.rejectedWith('Marketplace: native value not accepted');
+                });
+
                 it('buys a token with creator fee', async function () {
                     const tokenId = await mintStandardNft(alice, { amount: 2, fee: 1000, feeRecipient: charlie.address }); // 10% fee
                     const price = 100;
