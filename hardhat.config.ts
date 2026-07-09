@@ -11,7 +11,8 @@ const vinuChainId = Number(process.env.VINUCHAIN_CHAIN_ID || "207");
 //   VINUCHAIN_EXPLORER_URL      — browser URL shown in verify output
 //   VINUCHAIN_EXPLORER_API_KEY  — Blockscout accepts any non-empty string; no secret required
 // VinuScan is Blockscout-based; apiURL uses Blockscout's Etherscan-compatible /api route.
-// Values sourced from VinuScan-Frontend src/config/networks.js; confirm on first real `hardhat verify`.
+// Defaults match VinuScan-Frontend src/config/networks.js; run `yarn verify:config`
+// to assert the offline Hardhat verification contract before any live verify.
 const vinuChainExplorerApiUrl = process.env.VINUCHAIN_EXPLORER_API_URL || "https://vinuscan.com/api";
 const vinuChainExplorerUrl = process.env.VINUCHAIN_EXPLORER_URL || "https://vinuscan.com";
 const vinuChainExplorerApiKey = process.env.VINUCHAIN_EXPLORER_API_KEY || "vinuscan";
