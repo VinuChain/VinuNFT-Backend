@@ -83,5 +83,18 @@ block in `hardhat.config.ts`. Configure via env vars:
 - `VINUCHAIN_EXPLORER_API_KEY` — API key (may be any non-empty string if not enforced)
 - `VINUCHAIN_CHAIN_ID` — Defaults to `207` (VinuChain mainnet)
 
-**TODO**: confirm the exact verify API path with the VinuChain explorer team and
-update the defaults in `hardhat.config.ts`.
+Run `yarn verify:config` with `DEPLOYER_PRIVATE_KEY` unset before any live
+deployment or source-verification packet. The check validates the Hardhat
+`customChains` entry against the env/default contract, refuses live-network
+credentials, and does not contact RPC, VinuScan, or funded accounts.
+
+The committed mainnet defaults are:
+
+- `VINUCHAIN_CHAIN_ID=207`
+- `VINUCHAIN_EXPLORER_API_URL=https://vinuscan.com/api`
+- `VINUCHAIN_EXPLORER_URL=https://vinuscan.com`
+
+For testnet config checks, override the chain id plus API/browser URLs to
+`206`, `https://testnet.vinuscan.com/api`, and `https://testnet.vinuscan.com`.
+Live `hardhat verify` still requires an explicitly approved deployment address,
+constructor arguments, and deployment context.

@@ -36,6 +36,32 @@ Required network variables:
 - `VINUCHAIN_CHAIN_ID`: VinuChain mainnet is `207`.
 - `DEPLOYER_PRIVATE_KEY`: deployer private key used by Hardhat.
 
+Explorer source verification uses Hardhat's Etherscan-compatible `customChains`
+config for VinuScan/Blockscout:
+
+- `VINUCHAIN_EXPLORER_API_URL`: defaults to `https://vinuscan.com/api`.
+- `VINUCHAIN_EXPLORER_URL`: defaults to `https://vinuscan.com`.
+- `VINUCHAIN_EXPLORER_API_KEY`: defaults to `vinuscan`; Blockscout-compatible
+  explorers may accept any non-empty string when API keys are not enforced.
+
+Before any live deployment or source verification packet, validate the non-live
+configuration contract with the deployer key unset:
+
+```bash
+yarn verify:config
+```
+
+The check loads the Hardhat verification config, refuses `DEPLOYER_PRIVATE_KEY`
+or a live `vinuchain` network, and does not contact RPC, VinuScan, or any funded
+account. For testnet dry-run config checks, override the chain and explorer URLs:
+
+```bash
+VINUCHAIN_CHAIN_ID=206 \
+VINUCHAIN_EXPLORER_API_URL=https://testnet.vinuscan.com/api \
+VINUCHAIN_EXPLORER_URL=https://testnet.vinuscan.com \
+yarn verify:config
+```
+
 Marketplace deployment requires:
 
 - `COMMISSION_ACCOUNT`: non-zero address that receives platform fees.
@@ -62,6 +88,13 @@ yarn hardhat run scripts/deploy_marketplace.ts --network vinuchain
 ```
 
 The helper scripts reject missing, placeholder, and zero addresses for address inputs. `deploy_marketplace.ts` never silently uses the deployer as the commission account; pass `COMMISSION_ACCOUNT` explicitly.
+
+After an explicitly approved live deployment, verify the deployed source with
+the deployed address and exact constructor arguments:
+
+```bash
+yarn hardhat verify --network vinuchain <deployed-address> <constructor-args...>
+```
 
 ## Operations
 

@@ -9,7 +9,8 @@
     "test": "hardhat test",
     "coverage": "hardhat coverage",
     "lint": "solhint 'contracts/**/*.sol'",
-    "size": "hardhat size-contracts"
+    "size": "hardhat size-contracts",
+    "verify:config": "hardhat run --no-compile scripts/check_explorer_verify_config.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
