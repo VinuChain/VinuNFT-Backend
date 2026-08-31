@@ -952,27 +952,38 @@ describe("Marketplace", function () {
                 });
 
                 it('increases the platform commission after waiting', async function () {
-                    const requestTx = await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+                    const requestTx = await marketplace.requestPlatformFeePercentageIncrease(800); // 8%
                     const lock = await marketplace.lock();
                     await expect(requestTx)
                         .to.emit(marketplace, "PlatformFeePercentageIncreaseRequested")
-                        .withArgs(500, 2000, lock);
-                    expect(await marketplace.newPlatformFeePercentage()).to.equal(2000);
+                        .withArgs(500, 800, lock);
+                    expect(await marketplace.newPlatformFeePercentage()).to.equal(800);
 
                     await time.setNextBlockTimestamp((await time.latest()) + 3600 * 24 * 7); // 1 week
 
                     await expect(
                         marketplace.applyPlatformFeePercentageIncrease()
-                    ).to.emit(marketplace, "PlatformFeePercentageIncreaseApplied").withArgs(500, 2000);
-                    expect(await marketplace.platformFeePercentage()).to.equal(2000);
+                    ).to.emit(marketplace, "PlatformFeePercentageIncreaseApplied").withArgs(500, 800);
+                    expect(await marketplace.platformFeePercentage()).to.equal(800);
                     expect(await marketplace.newPlatformFeePercentage()).to.equal(0);
                     expect(await marketplace.lock()).to.equal(0);
                 });
 
-                it('rejects platform commission increases above 10000 basis points', async function () {
+                it('rejects platform commission increases above MAX_PLATFORM_FEE_PERCENTAGE', async function () {
+                    const ceiling = await marketplace.MAX_PLATFORM_FEE_PERCENTAGE();
+                    expect(ceiling).to.equal(1000n);
+
                     await expect(
-                        marketplace.requestPlatformFeePercentageIncrease(10001)
-                    ).to.be.revertedWith('NFTCommissions: platform fee percentage cannot exceed 10000 basis points');
+                        marketplace.requestPlatformFeePercentageIncrease(ceiling + 1n)
+                    ).to.be.revertedWith('NFTCommissions: platform fee percentage cannot exceed MAX_PLATFORM_FEE_PERCENTAGE');
+                });
+
+                it('the platform fee ceiling cannot take the whole sale price', async function () {
+                    // A 100% ceiling would let a timelocked increase leave the
+                    // seller with nothing. The bound must stay well under that.
+                    const ceiling = await marketplace.MAX_PLATFORM_FEE_PERCENTAGE();
+                    expect(ceiling).to.be.lessThan(10000n);
+                    expect(ceiling).to.be.lessThanOrEqual(1000n);
                 });
 
                 it('fails to increase the platform commission without first requesting it', async function () {
@@ -982,7 +993,7 @@ describe("Marketplace", function () {
                 });
 
                 it('fails to increase the platform commission too soon after requesting it', async function () {
-                    await marketplace.requestPlatformFeePercentageIncrease(2000); // 20%
+                    await marketplace.requestPlatformFeePercentageIncrease(800); // 8%
 
                     await time.setNextBlockTimestamp((await time.latest()) + 3600 * 24 * 1); // 1 day
 
