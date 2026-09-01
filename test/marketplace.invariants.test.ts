@@ -12,6 +12,7 @@ import {
 } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
+const ERC2981_INTERFACE_ID = "0x2a55205a";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // Settlement math mirrors _handleFunds in Marketplace.sol
@@ -445,6 +446,40 @@ describe("Marketplace invariants", function () {
             // Legs still sum to price.
             expect(sellerDelta + commissionDelta).to.equal(price, "legs should sum to price");
             // No wei stranded in the marketplace.
+            expect(await paymentToken.balanceOf(await marketplace.getAddress())).to.equal(0n);
+        });
+
+        it("an NFT that declares no ERC2981 settles with the whole remainder to the seller", async function () {
+            // The else arm of `if (_nftAddress.supportsInterface(ERC2981))` in
+            // _handleFunds had never executed: every NFT the suite listed
+            // declared ERC2981. A collection that does not is ordinary — most
+            // ERC-1155s predate the standard — and it must still settle.
+            expect(
+                await royaltyNft.supportsInterface(ERC2981_INTERFACE_ID)
+            ).to.equal(true);
+            await royaltyNft.setDeclaresRoyaltyInterface(false);
+            expect(
+                await royaltyNft.supportsInterface(ERC2981_INTERFACE_ID)
+            ).to.equal(false);
+            // A royalty is still stored: proving it is never read is the point.
+            await royaltyNft.setRoyalty(charlie.address, 40n);
+
+            const sellerBefore = await paymentToken.balanceOf(alice.address);
+            const commissionBefore = await paymentToken.balanceOf(deployer.address);
+            const creatorBefore = await paymentToken.balanceOf(charlie.address);
+
+            await marketplace.connect(bob).buyToken(
+                await royaltyNft.getAddress(), tokenId, listingId, 1, price
+            );
+
+            const sellerDelta = (await paymentToken.balanceOf(alice.address)) - sellerBefore;
+            const commissionDelta = (await paymentToken.balanceOf(deployer.address)) - commissionBefore;
+            const creatorDelta = (await paymentToken.balanceOf(charlie.address)) - creatorBefore;
+
+            expect(creatorDelta).to.equal(0n, "an undeclared royalty must not be paid");
+            expect(sellerDelta).to.equal(remainder, "seller receives the whole remainder");
+            expect(commissionDelta).to.equal(platformFee, "platform fee is still paid");
+            expect(sellerDelta + commissionDelta).to.equal(price, "legs sum to price");
             expect(await paymentToken.balanceOf(await marketplace.getAddress())).to.equal(0n);
         });
 

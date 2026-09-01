@@ -10,7 +10,8 @@
     "audit:prod": "yarn audit --groups dependencies",
     "coverage": "hardhat coverage",
     "lint": "solhint 'contracts/**/*.sol'",
-    "size": "hardhat size-contracts"
+    "size": "hardhat size-contracts",
+    "verify:deployment": "node scripts/verify-deployment-record.mjs"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

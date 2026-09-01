@@ -24,10 +24,17 @@ contract MockRoyaltyNFT is ERC1155, IERC2981 {
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     uint256 public lastTokenId;
+    /// @dev Off makes this a plain ERC-1155, so settlement takes the
+    /// non-ERC2981 arm of Marketplace._handleFunds.
+    bool public declaresRoyaltyInterface = true;
     address private _royaltyReceiver;
     uint256 private _royaltyAmount;
 
     constructor() ERC1155("") {}
+
+    function setDeclaresRoyaltyInterface(bool declares) external {
+        declaresRoyaltyInterface = declares;
+    }
 
     /// @dev Set the verbatim royaltyInfo return values.
     function setRoyalty(address receiver, uint256 amount) external {
@@ -59,6 +66,9 @@ contract MockRoyaltyNFT is ERC1155, IERC2981 {
         override(ERC1155, IERC165)
         returns (bool)
     {
-        return interfaceId == _INTERFACE_ID_ERC2981 || super.supportsInterface(interfaceId);
+        if (interfaceId == _INTERFACE_ID_ERC2981) {
+            return declaresRoyaltyInterface;
+        }
+        return super.supportsInterface(interfaceId);
     }
 }

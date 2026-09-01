@@ -474,6 +474,27 @@ describe("Marketplace", function () {
             });
 
             describe('buyToken', function () {
+                it('fails to buy more copies than the listing offers', async function () {
+                    // The listing amount is the seller's stated commitment;
+                    // buying past it was the one buyToken guard with no test.
+                    const tokenId = await mintStandardNft(alice, { amount: 5 });
+                    const price = 100;
+                    await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                    const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
+                    await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                    await paymentToken.connect(bob).mint(price * 3);
+                    await paymentToken.connect(bob).approve(await marketplace.getAddress(), price * 3);
+
+                    await expect(
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 3, price)
+                    ).to.be.revertedWith('Marketplace: not enough tokens to buy');
+
+                    // The seller still holds everything, and the listing stands.
+                    expect(await nftContract.balanceOf(alice.address, tokenId)).to.equal(5);
+                    expect((await marketplace.getListing(await nftContract.getAddress(), tokenId, listingId)).amount).to.equal(2);
+                });
+
                 it('buys a token', async function () {
                     const tokenId = await mintStandardNft(alice, { amount: 2 });
                     const price = 100;

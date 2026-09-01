@@ -131,6 +131,46 @@ describe("Marketplace administration", function () {
         expect(await marketplace.platformFeePercentage()).to.equal(100n);
     });
 
+    it("the fee-governance direction guards hold in both directions", async function () {
+        // Each function names a direction, and only the direction check stops
+        // one from doing the other's job: without it "decrease" could raise the
+        // fee with no timelock and no notice at all. Neither guard had a test.
+        const current = await marketplace.platformFeePercentage();
+        expect(current).to.equal(500n);
+
+        await expect(
+            marketplace.decreasePlatformFeePercentage(current)
+        ).to.be.revertedWith(
+            "NFTCommissions: _lowerFeePercentage must be lower than the current platform fee percentage"
+        );
+        await expect(
+            marketplace.decreasePlatformFeePercentage(current + 1n)
+        ).to.be.revertedWith(
+            "NFTCommissions: _lowerFeePercentage must be lower than the current platform fee percentage"
+        );
+
+        await expect(
+            marketplace.requestPlatformFeePercentageIncrease(current)
+        ).to.be.revertedWith(
+            "NFTCommissions: _higherFeePercentage must be higher than the current platform fee percentage"
+        );
+        await expect(
+            marketplace.requestPlatformFeePercentageIncrease(current - 1n)
+        ).to.be.revertedWith(
+            "NFTCommissions: _higherFeePercentage must be higher than the current platform fee percentage"
+        );
+
+        // A rejected request must not arm the timelock.
+        expect(await marketplace.platformFeePercentage()).to.equal(current);
+        expect(await marketplace.lock()).to.equal(0n);
+        expect(await marketplace.newPlatformFeePercentage()).to.equal(0n);
+
+        // Applying is owner-only too: the timelock is notice, not authority.
+        await expect(
+            marketplace.connect(bob).applyPlatformFeePercentageIncrease()
+        ).to.be.revertedWithCustomError(marketplace, "OwnableUnauthorizedAccount");
+    });
+
     it("commission account changes are owner-only, reject the zero address, and are observable", async function () {
         await expect(
             marketplace.connect(bob).setCommissionAccount(bob.address)

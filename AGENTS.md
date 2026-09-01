@@ -9,10 +9,11 @@ developer or AI agent working on this repository must know before making changes
 |--------------|----------------------------------|--------------------------------------------|
 | Install      | `yarn install --frozen-lockfile` | Required before any other command          |
 | Compile      | `yarn compile`                   | Must exit 0; generates typechain-types/    |
-| Test         | `yarn test`                      | 167 tests must all pass                    |
+| Test         | `yarn test`                      | All tests must pass; includes the Hardhat-network deployment rehearsal |
 | Coverage     | `yarn coverage`                  | Prints coverage table; thresholds enforced |
 | Lint         | `yarn lint`                      | solhint over contracts/**/*.sol; warnings OK, errors must be 0 |
 | Contract sizes | `yarn size`                    | Informational only                         |
+| Deployment record | `yarn verify:deployment`      | Read-only; checks deployments/vinuchain-207.json against chain 207 and the explorer |
 
 All commands require Node.js 22 (`nvm use 22` or `cat .nvmrc`). The CI workflow
 uses `ubuntu-latest` with `node-version: 22`.
@@ -52,6 +53,15 @@ Medium+ finding, fix it or annotate it with justification — do not lower the t
 ## Production deployment rule
 
 **Never use the deployer key as the commission account.**
+Enforced at deploy time by `scripts/deploy_marketplace.ts`, which aborts when
+`COMMISSION_ACCOUNT` equals the deployer. It is deliberately not a constructor
+`require`: this is custody policy, not a contract invariant, and the test suite
+legitimately deploys with the deployer as the commission account. **The deployed
+v1 Marketplace violates this rule** — creator, `owner()` and `commissionAccount`
+are all `0x12BD0b15D5010De455DCe7944265Fe1D35a84023`. It is immutable except via
+an owner-only `setCommissionAccount` call, which needs key custody nobody here
+has.
+
 The deployer key must remain in controlled custody (preferably a multisig or
 timelock). The commission account is a separate address that receives platform
 fees and can be rotated via `setCommissionAccount`. Using the same address for
@@ -64,14 +74,27 @@ After any contract redeployment, the frontend must be updated before it is
 usable. Complete every item:
 
 1. Run `yarn compile` to regenerate ABI artifacts under `artifacts/`.
-2. Copy the updated ABI JSON files into
-   `VinuNFT-Frontend/src/abis/*.json` (one file per contract).
-3. Update `VinuNFT-Frontend/src/config.js` with the new contract addresses
-   and, if applicable, the deployment block number for event indexing.
-4. Rebuild the frontend and smoke-test it against the live deployed addresses
-   before announcing the deployment.
+2. **Do not hand-copy the ABIs.** Run
+   `node scripts/sync-deployment.mjs --record <deployments/…json> --artifacts
+   <this repo>/artifacts` from the frontend repository — adding
+   `--generation v2` for a new generation, whose `v2:` block must already exist
+   in `src/config.js`, or the old addresses are overwritten and the product's
+   history goes with them. It writes
+   `src/abis/*.json` and the addresses and first blocks in `src/config.js`
+   together, and refuses the write when an ABI would reintroduce an overloaded
+   function name that `src/` still calls by bare name.
+   Copying the current artifacts by hand adds OpenZeppelin 5's zero-argument
+   `totalSupply()` next to `totalSupply(uint256)`, which makes
+   the frontend's `nftContract.totalSupply(id)` call ambiguous under ethers v5 and blanks the edition
+   size on every NFT page. See `docs/migration-and-rollback.md` for the
+   three-step change that lands a v2 ABI safely.
+3. Repin live state in `VinuNFT-Frontend/scripts/deployed-invariants.json` —
+   new addresses mean a new bytecode hash and new pinned view values.
+4. `yarn verify:deployed`, then `yarn test`, then rebuild and smoke-test against
+   the live deployed addresses before announcing the deployment.
 
-See `README.md:72-79` for the canonical prose version of this checklist.
+See `README.md` for the prose version and `docs/migration-and-rollback.md` for
+the full migration and rollback procedure.
 
 ## Explorer verification
 
@@ -83,5 +106,17 @@ block in `hardhat.config.ts`. Configure via env vars:
 - `VINUCHAIN_EXPLORER_API_KEY` — API key (may be any non-empty string if not enforced)
 - `VINUCHAIN_CHAIN_ID` — Defaults to `207` (VinuChain mainnet)
 
-**TODO**: confirm the exact verify API path with the VinuChain explorer team and
-update the defaults in `hardhat.config.ts`.
+The defaults are `https://mainnet.vinuexplorer.org/api` and
+`https://mainnet.vinuexplorer.org`, confirmed rather than assumed: that host is
+Blockscout and serves `module=contract&action=getsourcecode` unauthenticated for
+all three deployed contracts, which are already verified. **No API key is
+required.** The previous defaults pointed at `vinuscan.com`, which no longer
+resolves.
+
+`yarn verify:deployment` re-checks that verification, the deployed bytecode
+hashes and the recorded constructor arguments against chain 207. It is read-only
+and needs no key.
+
+Two things still block a real `hardhat verify` run: `networks` is `{}` unless
+both `VINUCHAIN_RPC_URL` and `DEPLOYER_PRIVATE_KEY` are set, and the POST
+submission path has never been exercised — only the read side has.

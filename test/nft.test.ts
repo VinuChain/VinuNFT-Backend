@@ -90,6 +90,8 @@ describe("NFT", function () {
     });
     for (const nftType of ["image", "text"]) {
         describe(`execution (${nftType})`, function () {
+            // The revert strings are prefixed with the contract's own name.
+            const label = nftType === "image" ? "ImageNFT" : "TextNFT";
             let nftContract: TextNFT | ImageNFT;
             let deployer: HardhatEthersSigner;
             let alice: HardhatEthersSigner;
@@ -151,6 +153,58 @@ describe("NFT", function () {
                 const tokenId = await nftContract.lastTokenId();
                 return tokenId;
             }
+
+            describe("public accessors", function () {
+                it("refuses to answer for a token that does not exist", async function () {
+                    // Reading a nonexistent token must revert with a named
+                    // reason rather than return an empty string, which a
+                    // caller cannot tell from a token minted with no metadata.
+                    await expect(nftContract.uri(1)).to.be.rejectedWith(
+                        `${label}: uri query for nonexistent token`
+                    );
+                    await expect(nftContract.authorOf(1)).to.be.rejectedWith(
+                        `${label}: author query for nonexistent token`
+                    );
+                });
+
+                it("refuses to mint zero copies", async function () {
+                    await expect(
+                        mintStandardNft(alice, { amount: 0 })
+                    ).to.be.rejectedWith(`${label}: amount cannot be zero`);
+                    expect(await nftContract.lastTokenId()).to.equal(0);
+                });
+
+                it("declares the interfaces a marketplace dispatches on", async function () {
+                    // Marketplace._handleFunds branches on ERC2981 and every
+                    // transfer path assumes ERC1155: a false answer here would
+                    // silently drop every creator royalty.
+                    expect(await nftContract.supportsInterface("0xd9b67a26")).to.equal(true, "ERC1155");
+                    expect(await nftContract.supportsInterface("0x2a55205a")).to.equal(true, "ERC2981");
+                    expect(await nftContract.supportsInterface("0x01ffc9a7")).to.equal(true, "ERC165");
+                    expect(await nftContract.supportsInterface("0xdeadbeef")).to.equal(false, "unknown");
+                });
+
+                if (nftType === "text") {
+                    it("returns the name and description stored at mint", async function () {
+                        // Both are in the deployed ABI, so a caller can and
+                        // does read them; neither had ever been executed.
+                        const tokenId = await mintStandardNft(alice, {});
+                        const textNft = nftContract as TextNFT;
+                        expect(await textNft.nameOf(tokenId)).to.equal("Text Test");
+                        expect(await textNft.descriptionOf(tokenId)).to.equal("Text Description");
+                    });
+
+                    it("refuses a name or description query for a nonexistent token", async function () {
+                        const textNft = nftContract as TextNFT;
+                        await expect(textNft.nameOf(1)).to.be.rejectedWith(
+                            "TextNFT: name query for nonexistent token"
+                        );
+                        await expect(textNft.descriptionOf(1)).to.be.rejectedWith(
+                            "TextNFT: description query for nonexistent token"
+                        );
+                    });
+                }
+            });
 
             describe("mint", function () {
                 it('mints a token', async function () {
