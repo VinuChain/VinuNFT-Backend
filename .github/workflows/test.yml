@@ -16,6 +16,13 @@ jobs:
         with:
           node-version: 22
       - run: yarn install --frozen-lockfile
+      # The production tree is one package, @openzeppelin/contracts, and it has
+      # no advisories. The baseline is therefore zero and needs no ratchet file:
+      # any non-zero result is a real production-tree regression, not drift.
+      # The dev tree is deliberately out of scope — hardhat, solhint,
+      # solidity-coverage, gas-reporter and verify never reach a compiled or
+      # deployed artifact.
+      - run: yarn audit:prod
       - run: yarn compile
       - run: yarn lint
       - run: yarn test

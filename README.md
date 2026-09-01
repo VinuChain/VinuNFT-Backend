@@ -26,6 +26,32 @@ Coverage is available with:
 yarn coverage
 ```
 
+## Dependency posture
+
+```bash
+yarn audit:prod
+```
+
+The production dependency tree is a single package, `@openzeppelin/contracts`,
+and it carries no advisories — `yarn audit --groups dependencies` reports
+`{"info":0,"low":0,"moderate":0,"high":0,"critical":0}` over
+`totalDependencies: 1`. The baseline is zero, so there is no ratchet file and no
+triage document: any non-zero result is a genuine production-tree regression.
+`yarn audit:prod` runs in the `hardhat` CI job before `yarn compile`.
+
+The dev tree's advisory counts are not actionable here. `hardhat`, `solhint`,
+`solidity-coverage`, `hardhat-gas-reporter` and `hardhat-verify` run on a
+developer machine or a CI runner and never reach a compiled or deployed
+artifact, so `--groups dependencies` is the correct scope rather than a
+convenient one. The gate is falsifiable: moving `hardhat-gas-reporter` into
+`dependencies` makes `yarn audit:prod` exit 30 with 33 advisories over 138
+packages, rooted in its `@ethersproject`/`elliptic`/`bn.js` chain.
+
+`@openzeppelin/contracts` resolves to 5.0.2 while `^5.0.2` permits any newer
+5.x. Do not bump it here: a different OpenZeppelin version changes the compiled
+bytecode of already-deployed contracts, which belongs to the deployment
+programme, not to dependency hygiene.
+
 ## Configuration
 
 Copy `.env.example` to a local `.env` file or export the same variables in your shell. Do not commit real private keys.

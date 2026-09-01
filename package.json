@@ -7,6 +7,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "audit:prod": "yarn audit --groups dependencies",
     "coverage": "hardhat coverage",
     "lint": "solhint 'contracts/**/*.sol'",
     "size": "hardhat size-contracts"
