@@ -474,6 +474,32 @@ describe("Marketplace", function () {
             });
 
             describe('buyToken', function () {
+                it('rejects native value on ERC-20 purchases', async function () {
+                    // Kept from master (#5), which prevented this with
+                    // `payable` plus `require(msg.value == 0)`. buyToken is now
+                    // non-payable, so the EVM rejects the value at dispatch and
+                    // there is no revert string to match on — a stronger stop,
+                    // and one that costs the caller no gas. The behaviour under
+                    // test is unchanged: value never reaches the contract.
+                    const tokenId = await mintStandardNft(alice, { amount: 2 });
+                    const price = 100;
+                    await nftContract.connect(alice).setApprovalForAll(await marketplace.getAddress(), true);
+                    const listingId = await marketplace.listingCount(await nftContract.getAddress(), tokenId);
+                    await marketplace.connect(alice).listToken(await nftContract.getAddress(), tokenId, await paymentToken.getAddress(), price, 2);
+
+                    await paymentToken.connect(bob).mint(price);
+                    await paymentToken.connect(bob).approve(await marketplace.getAddress(), price);
+
+                    await expect(
+                        marketplace.connect(bob).buyToken(await nftContract.getAddress(), tokenId, listingId, 1, price, { value: 1 })
+                    ).to.be.rejected;
+
+                    expect(
+                        await hre.ethers.provider.getBalance(await marketplace.getAddress())
+                    ).to.equal(0n);
+                    expect(await nftContract.balanceOf(bob.address, tokenId)).to.equal(0);
+                });
+
                 it('fails to buy more copies than the listing offers', async function () {
                     // The listing amount is the seller's stated commitment;
                     // buying past it was the one buyToken guard with no test.

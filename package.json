@@ -12,7 +12,8 @@
     "lint": "solhint 'contracts/**/*.sol'",
     "size": "hardhat size-contracts",
     "verify:deployment": "node scripts/verify-deployment-record.mjs",
-    "estimate:deployment": "hardhat run scripts/estimate_deployment.ts --network vinuchainTestnet"
+    "estimate:deployment": "hardhat run scripts/estimate_deployment.ts --network vinuchainTestnet",
+    "verify:config": "hardhat run --no-compile scripts/check_explorer_verify_config.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
