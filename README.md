@@ -10,7 +10,9 @@ Solidity contracts and Hardhat tooling for VinuNFT on VinuChain. The suite inclu
 
 - Node.js 22
 - Yarn 1.x
-- A funded VinuChain deployer key for testnet/mainnet deployment
+- A funded VinuChain deployer key for testnet/mainnet deployment. None exists in
+  this repository; `yarn estimate:deployment` establishes what one would need
+  without holding one.
 
 ## Install and verify
 
@@ -90,7 +92,74 @@ yarn hardhat run scripts/deploy_marketplace.ts --network vinuchain
 
 The helper scripts reject missing, placeholder, and zero addresses for address inputs. `deploy_marketplace.ts` refuses the deploy outright when `COMMISSION_ACCOUNT` equals the deployer.
 
-`test/deployment.rehearsal.test.ts` runs these three scripts against the Hardhat network on every `yarn test`, with the constructor arguments the live contracts were built with. That is a rehearsal, not a testnet rehearsal: no VinuChain testnet endpoint currently resolves.
+`test/deployment.rehearsal.test.ts` runs these three scripts against the Hardhat network on every `yarn test`, with the constructor arguments the live contracts were built with.
+
+### Testnet rehearsal (chain 206)
+
+VinuChain testnet is reachable and wired as the `vinuchainTestnet` Hardhat
+network. Its coordinates come from the [official docs](https://vinu.gitbook.io/vinuchain/technical-docs/vinuchain-testnet/connect-to-testnet)
+and were confirmed live on 2026-09-02: RPC `https://vinufoundation-rpc.com`,
+chain id 206 (`eth_chainId` -> `0xce`), explorer `https://testnet.vinuexplorer.org`,
+which serves `module=contract&action=getsourcecode` unauthenticated, so
+`hardhat verify --network vinuchainTestnet` needs no API key. This supersedes
+`testnet.vinuscan.com`, which does not resolve — the reason this repository
+previously recorded that no VinuChain testnet existed.
+
+The network entry deliberately does **not** require `DEPLOYER_PRIVATE_KEY`.
+Estimation, chain-id checks and explorer verification are reads; gating the
+whole entry on a key made the rehearsal impossible to run without funds.
+
+```bash
+yarn estimate:deployment      # hardhat run scripts/estimate_deployment.ts --network vinuchainTestnet
+```
+
+It drives the same contract factories and the same constructor-argument
+environment variables the deploy scripts use, and asks the live node to
+estimate. Measured 2026-09-02 against both chain 206 and chain 207, which
+returned the same figures — deployment gas is intrinsic plus code deposit, so it
+is not chain-specific. The script targets the testnet because that is the
+network entry that works without a key; `--network vinuchain` needs one:
+
+| contract | gas |
+| --- | --- |
+| ImageNFT | 1,553,932 |
+| TextNFT | 2,472,229 |
+| Marketplace | 2,097,439 |
+| **total** | **6,123,600** |
+
+At the then-current 41.00076 gwei that is **0.2511 VC**; at the then-current
+`maxFeePerGas` of 81.00076 gwei, **0.4960 VC**. Gas price moves, so re-run the
+script rather than trusting these; fund the deployer for at least the
+`maxFeePerGas` figure with headroom.
+
+The deployer address is derived from the key, never stored here. With
+`DEPLOYER_PRIVATE_KEY` set, the script prints the address and its balance and
+prints nothing else about the key.
+
+What this rehearsal cannot do is sign and broadcast. Two blockers remain, both
+external to this repository:
+
+1. **A funded key.** No VinuChain key exists here, for 206 or 207. The
+   deployer address is derived from `DEPLOYER_PRIVATE_KEY` at run time
+   (`new ethers.Wallet(key).address`, printed by `yarn estimate:deployment`);
+   no address is recorded here because no key exists to derive one from.
+
+   **How to fund it is not settled, and this is the honest state of it.** No
+   faucet host resolves: `faucet.vinuchain.org`, `vinuchain.org/faucet`,
+   `faucet.vinufoundation-rpc.com` and `testnet.vinuexplorer.org/faucet` all
+   fail or 404 (checked 2026-09-02). VinuChain's own testnet documentation
+   pages carry network settings and **no faucet section at all** — neither the
+   testnet index nor `connect-to-testnet` mentions one, and vinuchain.org links
+   no faucet. Third-party write-ups from 2023 say testnet VC is handed out in
+   VinuChain's Discord via a `/faucet` command; the invite
+   <https://discord.gg/vinu> does resolve, to the official "Vita Inu (VINU)"
+   guild. **That command was not verified from here** — confirming it needs a
+   Discord account and a human. Treat the Discord route as the lead to try,
+   not as documented fact, and ask the VinuChain team directly if it fails.
+2. **The custody decision.** `deploy_marketplace.ts` refuses a
+   `COMMISSION_ACCOUNT` equal to the deployer, which the live v1 Marketplace
+   violates. A second address, and access to it, has to be decided before any
+   deployment — testnet or mainnet.
 
 ### What is already deployed
 
