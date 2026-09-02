@@ -15,6 +15,20 @@ import { writeFileSync, rmSync } from "node:fs";
 describe("hardhat config", function () {
     const probe = "scripts/_chainid_probe.ts";
 
+    // solidity-coverage accumulates into shared artifacts in the project root.
+    // The nested `hardhat run` these cases need clobbers them, which silently
+    // collapsed reported contract coverage from 96% to 9.87% while every test
+    // still passed. CI runs `yarn test` and `yarn coverage` as separate steps,
+    // so skipping here costs no coverage of these assertions — and they cover
+    // config wiring, which contributes nothing to contract coverage anyway.
+    before(function () {
+        // solidity-coverage sets this on the HRE; it does not set an env var.
+        if ((hre as unknown as { __SOLIDITY_COVERAGE_RUNNING?: boolean })
+                .__SOLIDITY_COVERAGE_RUNNING) {
+            this.skip();
+        }
+    });
+
     const readChainIds = (env: NodeJS.ProcessEnv) => {
         const out = execFileSync(
             "npx",
