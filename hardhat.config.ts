@@ -19,6 +19,13 @@ const TESTNET = {
     explorerUrl: "https://testnet.vinuexplorer.org",
 };
 
+// One value for both the network and its customChains entry. Hardhat Verify
+// picks a custom chain by the chain id the RPC reports, so an override that
+// moved only the network would fail verification as an unsupported chain.
+const vinuChainTestnetId = Number(
+    process.env.VINUCHAIN_TESTNET_CHAIN_ID || TESTNET.chainId
+);
+
 const accounts = deployerPrivateKey ? [deployerPrivateKey] : [];
 
 // Explorer verification env vars:
@@ -66,7 +73,7 @@ const config: HardhatUserConfig = {
     // here still needs DEPLOYER_PRIVATE_KEY; without it there is no signer.
     vinuchainTestnet: {
       url: process.env.VINUCHAIN_TESTNET_RPC_URL || TESTNET.url,
-      chainId: Number(process.env.VINUCHAIN_TESTNET_CHAIN_ID || TESTNET.chainId),
+      chainId: vinuChainTestnetId,
       accounts,
     },
   },
@@ -88,7 +95,7 @@ const config: HardhatUserConfig = {
       },
       {
         network: "vinuchainTestnet",
-        chainId: TESTNET.chainId,
+        chainId: vinuChainTestnetId,
         urls: {
           apiURL: TESTNET.explorerApiUrl,
           browserURL: TESTNET.explorerUrl,
