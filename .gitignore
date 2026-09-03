@@ -16,3 +16,9 @@ node_modules
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+
+# Generated planning scratch (see plans/README.md); not part of the build.
+plans/
+
+# Local-only advisory improve-plans, matching the frontend convention
+plans/

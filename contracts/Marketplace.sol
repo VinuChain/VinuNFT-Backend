@@ -175,10 +175,14 @@ contract Marketplace is Pausable, Ownable, NFTCommissions, ReentrancyGuard {
         _paymentToken.safeTransferFrom(msg.sender, seller, sellerEarnings);
     }
 
-    function buyToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount, uint256 _expectedPrice) external payable whenNotPaused nonReentrant {
+    // Settlement is ERC-20 only: this contract never reads msg.value, and no
+    // function here or in NFTCommissions can pay native VC out again. Marking
+    // buyToken payable therefore only created a trap — value sent with a
+    // purchase would be locked in the contract permanently. The deployed
+    // generation is payable and cannot be changed; this applies to the next.
+    function buyToken(IERC1155 _nftAddress, uint256 _tokenId, uint256 _listingId, uint256 _amount, uint256 _expectedPrice) external whenNotPaused nonReentrant {
         // If all copies have been burned, the token is deleted, which means that a listing could have a non-existent token
         // require(_nftAddress.exists(_tokenId), "Marketplace: token does not exist"); // Opt., uses non-standard method
-        require(msg.value == 0, "Marketplace: native value not accepted");
         require(_amount > 0, "Marketplace: _amount must be greater than 0");
         // require(_listingId < listingCount[_nftAddress][_tokenId], "Marketplace: listing index out of bounds"); // Opt.
         require(listings[_nftAddress][_tokenId][_listingId].seller != address(0), "Marketplace: cannot interact with a non-existent listing");

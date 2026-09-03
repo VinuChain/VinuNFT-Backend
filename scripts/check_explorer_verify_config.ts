@@ -11,9 +11,16 @@ type CustomChain = {
 
 const networkName = "vinuchain";
 const expectedChainId = Number(process.env.VINUCHAIN_CHAIN_ID || "207");
-const expectedApiUrl = process.env.VINUCHAIN_EXPLORER_API_URL || "https://vinuscan.com/api";
-const expectedBrowserUrl = process.env.VINUCHAIN_EXPLORER_URL || "https://vinuscan.com";
-const expectedApiKey = process.env.VINUCHAIN_EXPLORER_API_KEY || "vinuscan";
+// vinuscan.com does not resolve — curl returns HTTP 000 for both the site and
+// testnet.vinuscan.com. The live Blockscout for chain 207 is
+// mainnet.vinuexplorer.org, which serves module=contract&action=getsourcecode
+// unauthenticated for all three deployed contracts. These defaults must stay in
+// step with hardhat.config.ts, which is the whole point of this check.
+const expectedApiUrl =
+  process.env.VINUCHAIN_EXPLORER_API_URL || "https://mainnet.vinuexplorer.org/api";
+const expectedBrowserUrl =
+  process.env.VINUCHAIN_EXPLORER_URL || "https://mainnet.vinuexplorer.org";
+const expectedApiKey = process.env.VINUCHAIN_EXPLORER_API_KEY || "vinuchain";
 
 const hardhatConfig = hre.config as typeof hre.config & {
   etherscan?: {

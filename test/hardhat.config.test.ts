@@ -1,0 +1,104 @@
+import hre from "hardhat";
+import { expect } from "chai";
+import { execFileSync } from "node:child_process";
+import { writeFileSync, rmSync } from "node:fs";
+
+/**
+ * Hardhat Verify selects a custom chain by the chain id the RPC reports. If
+ * VINUCHAIN_TESTNET_CHAIN_ID moved the network but not the customChains entry,
+ * `hardhat verify --network vinuchainTestnet` would fail as an unsupported
+ * chain — and only for whoever set the override, so it would not show up here.
+ *
+ * The override has to be applied in a fresh process: the config is read once at
+ * load, so asserting inside this process would compare two values that are
+ * equal by default and prove nothing.
+ */
+describe("hardhat config", function () {
+    const probe = "scripts/_chainid_probe.ts";
+
+    // solidity-coverage accumulates into shared artifacts in the project root.
+    // The nested `hardhat run` these cases need clobbers them, which silently
+    // collapsed reported contract coverage from 96% to 9.87% while every test
+    // still passed. CI runs `yarn test` and `yarn coverage` as separate steps,
+    // so skipping here costs no coverage of these assertions — and they cover
+    // config wiring, which contributes nothing to contract coverage anyway.
+    before(function () {
+        // solidity-coverage sets this on the HRE; it does not set an env var.
+        if ((hre as unknown as { __SOLIDITY_COVERAGE_RUNNING?: boolean })
+                .__SOLIDITY_COVERAGE_RUNNING) {
+            this.skip();
+        }
+    });
+
+    const readChainIds = (env: NodeJS.ProcessEnv) => {
+        const out = execFileSync(
+            "npx",
+            ["hardhat", "run", probe, "--network", "hardhat"],
+            { encoding: "utf8", env: { ...process.env, ...env } }
+        );
+        const line = out.split("\n").find((l) => l.startsWith("CHAINIDS "));
+        expect(line, `probe printed no result:\n${out}`).to.not.equal(undefined);
+        return JSON.parse((line as string).slice("CHAINIDS ".length));
+    };
+
+    before(function () {
+        writeFileSync(
+            probe,
+            [
+                'import hre from "hardhat";',
+                'const nets = hre.config.networks as any;',
+                'const net = nets.vinuchainTestnet.chainId;',
+                'const custom = (hre.config as any).etherscan.customChains.find(',
+                '    (c: any) => c.network === "vinuchainTestnet"',
+                ").chainId;",
+                'const accounts = (nets.vinuchainTestnet.accounts as string[]).length;',
+                'const mainnet = nets.vinuchain !== undefined;',
+                'console.log("CHAINIDS " + JSON.stringify({ net, custom, accounts, mainnet }));',
+                "",
+            ].join("\n")
+        );
+    });
+
+    after(function () {
+        rmSync(probe, { force: true });
+    });
+
+    it("uses chain 206 for the testnet by default", function () {
+        this.timeout(120000);
+        const { net, custom } = readChainIds({});
+        expect(net).to.equal(206);
+        expect(custom).to.equal(206);
+    });
+
+    it("treats the .env.example placeholder private key as unset", function () {
+        this.timeout(120000);
+        // Sourcing an unchanged .env.example gives DEPLOYER_PRIVATE_KEY as 32
+        // zero bytes. secp256k1 rejects it and Hardhat builds the signer when
+        // it creates the provider, so a placeholder left in `accounts` kills
+        // the read-only `yarn estimate:deployment` before it makes one call.
+        const { accounts, mainnet } = readChainIds({
+            DEPLOYER_PRIVATE_KEY: `0x${"0".repeat(64)}`,
+            VINUCHAIN_RPC_URL: "https://rpc.vinuchain.org",
+        });
+        expect(
+            accounts,
+            "the zero placeholder was handed to Hardhat as a signing key"
+        ).to.equal(0);
+        expect(
+            mainnet,
+            "the placeholder conjured a `vinuchain` deploy network with an unusable key"
+        ).to.equal(false);
+    });
+
+    it("moves the verify entry too when the testnet chain id is overridden", function () {
+        this.timeout(120000);
+        const { net, custom } = readChainIds({
+            VINUCHAIN_TESTNET_CHAIN_ID: "999",
+        });
+        expect(net).to.equal(999);
+        expect(
+            custom,
+            "customChains kept the hardcoded id, so hardhat verify would reject this chain"
+        ).to.equal(999);
+    });
+});
