@@ -5,6 +5,7 @@ import record from "../deployments/vinuchain-207.json";
 import { main as deployTextNFT } from "../scripts/deploy_text_nft";
 import { main as deployImageNFT } from "../scripts/deploy_image_nft";
 import { main as deployMarketplace } from "../scripts/deploy_marketplace";
+import { main as estimateDeployment } from "../scripts/estimate_deployment";
 
 /**
  * HARDHAT-NETWORK REHEARSAL — NOT a testnet rehearsal.
@@ -15,8 +16,9 @@ import { main as deployMarketplace } from "../scripts/deploy_marketplace";
  * network. It proves the scripts run, take their inputs from the environment
  * the operator sets, and produce contracts whose observable state matches what
  * is deployed. It proves nothing about a real network's gas, nonce or reorg
- * behaviour: no VinuChain testnet endpoint resolves (testnet.vinuscan.com is
- * dead), so the testnet half of the criterion stays externally blocked.
+ * behaviour. The live half of that is `yarn estimate:deployment`, which asks
+ * VinuChain testnet (chain 206, hardhat.config.ts TESTNET) to estimate the
+ * same deploys; only signing and broadcasting stay blocked on a funded key.
  *
  * The Marketplace leg cannot replay production verbatim, and that is the
  * finding rather than an inconvenience: production was deployed with
@@ -114,5 +116,17 @@ describe("Deployment rehearsal (Hardhat network)", function () {
         await expect(deployMarketplace()).to.be.rejectedWith(
             /COMMISSION_ACCOUNT must be set to a non-zero address/
         );
+    });
+
+    it("estimates a deployment when COMMISSION_ACCOUNT is the .env.example placeholder", async function () {
+        // A deploy must refuse the zero address (the case above). An ESTIMATE
+        // must not: the operator who sourced an unchanged .env.example is
+        // asking what a deployment would cost, and the Marketplace constructor
+        // reverts on zero inside estimateGas, so the placeholder has to be
+        // read as "not decided yet" and replaced with the estimation default.
+        process.env.COMMISSION_ACCOUNT = hre.ethers.ZeroAddress;
+
+        const { gas } = await estimateDeployment();
+        expect(gas).to.be.greaterThan(0n);
     });
 });

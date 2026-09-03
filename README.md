@@ -65,12 +65,15 @@ Required network variables:
 - `DEPLOYER_PRIVATE_KEY`: deployer private key used by Hardhat.
 
 Explorer source verification uses Hardhat's Etherscan-compatible `customChains`
-config for VinuScan/Blockscout:
+config against Blockscout:
 
-- `VINUCHAIN_EXPLORER_API_URL`: defaults to `https://vinuscan.com/api`.
-- `VINUCHAIN_EXPLORER_URL`: defaults to `https://vinuscan.com`.
-- `VINUCHAIN_EXPLORER_API_KEY`: defaults to `vinuscan`; Blockscout-compatible
+- `VINUCHAIN_EXPLORER_API_URL`: defaults to `https://mainnet.vinuexplorer.org/api`.
+- `VINUCHAIN_EXPLORER_URL`: defaults to `https://mainnet.vinuexplorer.org`.
+- `VINUCHAIN_EXPLORER_API_KEY`: defaults to `vinuchain`; Blockscout-compatible
   explorers may accept any non-empty string when API keys are not enforced.
+
+Do not export the old `vinuscan.com` values. That host no longer resolves, so
+setting them explicitly overrides working defaults with a dead endpoint.
 
 Before any live deployment or source verification packet, validate the non-live
 configuration contract with the deployer key unset:
@@ -80,13 +83,14 @@ yarn verify:config
 ```
 
 The check loads the Hardhat verification config, refuses `DEPLOYER_PRIVATE_KEY`
-or a live `vinuchain` network, and does not contact RPC, VinuScan, or any funded
-account. For testnet dry-run config checks, override the chain and explorer URLs:
+or a live `vinuchain` network, and does not contact RPC, the explorer, or any
+funded account. For testnet dry-run config checks, override the chain and
+explorer URLs:
 
 ```bash
 VINUCHAIN_CHAIN_ID=206 \
-VINUCHAIN_EXPLORER_API_URL=https://testnet.vinuscan.com/api \
-VINUCHAIN_EXPLORER_URL=https://testnet.vinuscan.com \
+VINUCHAIN_EXPLORER_API_URL=https://testnet.vinuexplorer.org/api \
+VINUCHAIN_EXPLORER_URL=https://testnet.vinuexplorer.org \
 yarn verify:config
 ```
 
@@ -189,7 +193,7 @@ external to this repository:
 
 ### What is already deployed
 
-[`deployments/vinuchain-207.json`](deployments/vinuchain-207.json) records the live generation — addresses, first blocks, creation transactions, runtime bytecode hashes, decoded constructor arguments and compiler settings — read back from chain 207 and the explorer, not from this source, which is newer than what is live. `yarn verify:deployment` re-checks the whole record; it is read-only and needs no key.
+[`deployments/vinuchain-207.json`](deployments/vinuchain-207.json) records the live generation — addresses, first blocks, creation transactions, runtime bytecode hashes, decoded constructor arguments and compiler settings — read back from chain 207 and the explorer, not from this source, which is newer than what is live. `yarn verify:deployment` re-checks the whole record; it is read-only and needs no key. A new generation adds a record rather than replacing this one, so name it: `yarn verify:deployment --record deployments/<file>.json`.
 
 ### Migrating and rolling back
 
@@ -204,7 +208,7 @@ yarn hardhat verify --network vinuchain <deployed-address> <constructor-args...>
 
 ## Operations
 
-The marketplace owner can pause/unpause trading and manage platform fees. Fee increases are capped at 10000 basis points and must wait through the 7-day timelock; decreases apply immediately. Commission account changes reject the zero address and emit events for monitoring.
+The marketplace owner can pause/unpause trading and manage platform fees. Fee increases must wait through the 7-day timelock; decreases apply immediately. The ceiling differs by generation: the live v1 Marketplace at `0xcA396A95E0EB8B6804e25F9db131780a60564047` is immutable and keeps `MAX_PLATFORM_FEE_PERCENTAGE = 10000` (100%), while the next generation built from this source caps increases at `1000` (10%) — a request above the ceiling of the contract you are operating reverts. Commission account changes reject the zero address and emit events for monitoring.
 
 Keep the owner key in controlled custody. A multisig or timelock owner is preferred for production deployments. If a deployment is already live, contract changes require a migration plan and frontend ABI/address sync.
 
@@ -215,7 +219,8 @@ After contract changes:
 1. Run `yarn compile`.
 2. From the frontend repository, run `node scripts/sync-deployment.mjs --record <deployments/…json> --artifacts <this repo>/artifacts`. It writes the ABIs, addresses and first blocks together and refuses to reintroduce an overloaded function name that the frontend still calls by bare name — hand-copying the current artifacts breaks the NFT page's edition size.
 3. Repin live state in the frontend's `scripts/deployed-invariants.json`.
-4. `yarn verify:deployed`, then rebuild and smoke-test the frontend against the deployed addresses.
+4. `yarn verify:deployed`, then `yarn test` — the ABI and address change is a change to what every consumer of them sees, and the regression suite is what checks them.
+5. Rebuild and smoke-test the frontend against the deployed addresses.
 
 See `docs/migration-and-rollback.md` for the full procedure and the rollback path.
 

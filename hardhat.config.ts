@@ -3,7 +3,16 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-contract-sizer";
 
 const vinuChainRpcUrl = process.env.VINUCHAIN_RPC_URL;
-const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
+// An unchanged .env.example sources DEPLOYER_PRIVATE_KEY as 32 zero bytes.
+// That is not a key — secp256k1 rejects it — and Hardhat derives the address
+// eagerly when it builds the provider, so leaving the placeholder in `accounts`
+// kills even the read-only `yarn estimate:deployment` with "Expected valid
+// bigint: 0 < bigint < curve.n". A placeholder is an unset key, not a key.
+const configuredPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
+const deployerPrivateKey =
+    configuredPrivateKey && !/^(0x)?0+$/.test(configuredPrivateKey)
+        ? configuredPrivateKey
+        : undefined;
 const vinuChainId = Number(process.env.VINUCHAIN_CHAIN_ID || "207");
 
 // VinuChain testnet, chain 206. Coordinates from the official docs

@@ -1,3 +1,4 @@
+import hre from "hardhat";
 import { expect } from "chai";
 import { execFileSync } from "node:child_process";
 import { writeFileSync, rmSync } from "node:fs";
@@ -45,11 +46,14 @@ describe("hardhat config", function () {
             probe,
             [
                 'import hre from "hardhat";',
-                'const net = (hre.config.networks as any).vinuchainTestnet.chainId;',
+                'const nets = hre.config.networks as any;',
+                'const net = nets.vinuchainTestnet.chainId;',
                 'const custom = (hre.config as any).etherscan.customChains.find(',
                 '    (c: any) => c.network === "vinuchainTestnet"',
                 ").chainId;",
-                'console.log("CHAINIDS " + JSON.stringify({ net, custom }));',
+                'const accounts = (nets.vinuchainTestnet.accounts as string[]).length;',
+                'const mainnet = nets.vinuchain !== undefined;',
+                'console.log("CHAINIDS " + JSON.stringify({ net, custom, accounts, mainnet }));',
                 "",
             ].join("\n")
         );
@@ -64,6 +68,26 @@ describe("hardhat config", function () {
         const { net, custom } = readChainIds({});
         expect(net).to.equal(206);
         expect(custom).to.equal(206);
+    });
+
+    it("treats the .env.example placeholder private key as unset", function () {
+        this.timeout(120000);
+        // Sourcing an unchanged .env.example gives DEPLOYER_PRIVATE_KEY as 32
+        // zero bytes. secp256k1 rejects it and Hardhat builds the signer when
+        // it creates the provider, so a placeholder left in `accounts` kills
+        // the read-only `yarn estimate:deployment` before it makes one call.
+        const { accounts, mainnet } = readChainIds({
+            DEPLOYER_PRIVATE_KEY: `0x${"0".repeat(64)}`,
+            VINUCHAIN_RPC_URL: "https://rpc.vinuchain.org",
+        });
+        expect(
+            accounts,
+            "the zero placeholder was handed to Hardhat as a signing key"
+        ).to.equal(0);
+        expect(
+            mainnet,
+            "the placeholder conjured a `vinuchain` deploy network with an unusable key"
+        ).to.equal(false);
     });
 
     it("moves the verify entry too when the testnet chain id is overridden", function () {

@@ -92,9 +92,12 @@ Nothing here applies to the current generation: while v1 is live the ABI has one
    against.
 5. **Record it.** Add a `deployments/vinuchain-207-v2.json` in the same shape:
    addresses, first blocks, creation txs, runtime bytecode hashes, decoded
-   constructor arguments, compiler settings. Then `yarn verify:deployment`
-   against it. A generation that is not recorded cannot be verified later, and
-   the previous explorer host has already vanished once.
+   constructor arguments, compiler settings. Then
+   `yarn verify:deployment --record deployments/vinuchain-207-v2.json` — the
+   flag is what points the gate at the new generation; without it the gate
+   re-checks v1 and reports OK for a record it never opened. A generation that
+   is not recorded cannot be verified later, and the previous explorer host has
+   already vanished once.
 6. **Add the new generation to `src/config.js` by hand, then sync.** The sync
    tool rewrites values that already exist; it does not invent a generation. Add
    a `v2:` block beside `v1:` in both `contractAddresses` and `firstBlocks` —
@@ -106,15 +109,17 @@ Nothing here applies to the current generation: while v1 is live the ABI has one
    `v1`, which is the right thing when re-syncing the live generation and the
    wrong thing during a cutover: it would overwrite the old addresses and take
    the product's history with them.
-7. **Gate order**, all from the frontend repo: `yarn verify:deployed` →
+7. **Repin live state, before the gates.**
+   `VinuNFT-Frontend/scripts/deployed-invariants.json` pins the bytecode hash
+   and every zero-argument view of the live contracts. New addresses mean new
+   pins: step 6 has already moved the addresses, so `verify:deployed` measures
+   the new contracts against the old pins and fails until this file is updated
+   in the same change.
+8. **Gate order**, all from the frontend repo: `yarn verify:deployed` →
    `yarn test` → `yarn build` → `yarn verify:csp` → `yarn verify:rendered` →
    `yarn verify:readiness`. Run `verify:deployed` first: it is the cheapest and
    it is the one that catches a wrong address or first block, which makes every
    later gate meaningless.
-8. **Repin live state.** `VinuNFT-Frontend/scripts/deployed-invariants.json`
-   pins the bytecode hash and every zero-argument view of the live contracts.
-   New addresses mean new pins; update that file in the same change or
-   `verify:deployed` fails, correctly.
 
 ## Rolling back
 

@@ -32,6 +32,19 @@ const DEFAULTS: Record<string, string> = {
 
 const arg = (name: string) => process.env[name] || DEFAULTS[name];
 
+// COMMISSION_ACCOUNT ships in .env.example as the zero address, a placeholder
+// for a decision nobody has made yet. It is truthy, so `arg` would hand it to
+// the Marketplace constructor, which rejects zero — and estimateGas reverts,
+// taking the whole read-only estimate down. Substituting the default is right
+// HERE and wrong in scripts/deploy_marketplace.ts, which must keep refusing a
+// zero commission account rather than quietly deploying with a different one.
+const commissionAccount = () => {
+    const configured = process.env.COMMISSION_ACCOUNT;
+    return configured && !/^0x0+$/i.test(configured)
+        ? configured
+        : DEFAULTS.COMMISSION_ACCOUNT;
+};
+
 export async function main() {
     const { ethers } = hre;
     const net = await ethers.provider.getNetwork();
@@ -67,7 +80,7 @@ export async function main() {
                 arg("TEXT_NFT_EXTERNAL_LINK"),
             ],
         ],
-        ["Marketplace", [arg("COMMISSION_ACCOUNT")]],
+        ["Marketplace", [commissionAccount()]],
     ];
 
     let total = 0n;

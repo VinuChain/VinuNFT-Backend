@@ -11,6 +11,10 @@
  *   1. bytecode — keccak256(eth_getCode(address)) equals runtimeCodeHash. This
  *      is the identity of the deployed generation; local recompilation cannot
  *      reproduce it, because this repository's source is strictly newer.
+ *   1b. creationTx — its receipt created THIS address, in the block recorded as
+ *      firstBlock. Neither field is reachable from an address lookup, and
+ *      firstBlock is copied into the frontend's activity scan window, where a
+ *      later value hides the collection's earliest activity.
  *   2. constructor arguments — the recorded values, ABI-encoded with the
  *      recorded types, equal the ConstructorArguments the explorer verified the
  *      bytecode against. Re-encoding rather than storing the hex means a typo
@@ -27,17 +31,32 @@
  * rpc.vinuchain.org does not, and an unconditional failure here would make this
  * flaky-red rather than useful. Chain reads have no such excuse and always fail.
  *
- * Read-only, no key, no explorer API key. Usage: node scripts/verify-deployment-record.mjs
+ * Read-only, no key, no explorer API key.
+ *
+ *   yarn verify:deployment                      # the live v1 record
+ *   yarn verify:deployment --record deployments/vinuchain-207-v2.json
+ *
+ * The path is an argument because a new generation adds a record, it does not
+ * replace the old one (docs/migration-and-rollback.md): without it this gate
+ * would keep checking v1 and report OK for a v2 it never opened.
  */
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AbiCoder, JsonRpcProvider, keccak256 } from "ethers";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const record = JSON.parse(
-    readFileSync(resolve(root, "deployments/vinuchain-207.json"), "utf8")
+const recordFlag = process.argv.indexOf("--record");
+const recordPath = resolve(
+    root,
+    recordFlag === -1 ? "deployments/vinuchain-207.json" : process.argv[recordFlag + 1] ?? ""
 );
+const record = JSON.parse(readFileSync(recordPath, "utf8"));
+// Repo-relative when it is in the repo, absolute otherwise: the OK line has to
+// name the generation it actually checked.
+const shownRecordPath = relative(root, recordPath).startsWith("..")
+    ? recordPath
+    : relative(root, recordPath);
 
 const failures = [];
 const notes = [];
@@ -79,6 +98,28 @@ for (const [key, c] of Object.entries(record.contracts)) {
         fail(`${key}: runtime bytecode hash is ${codeHash}, record says ${c.runtimeCodeHash}`);
     }
 
+    // The record's creationTx and firstBlock are transcribed, not derived: an
+    // address lookup confirms neither. Both receipts resolve on the recorded
+    // RPC (checked live on 2026-09-03), so a mismatch is a wrong record.
+    const receipt = await provider.getTransactionReceipt(c.creationTx);
+    if (receipt === null) {
+        fail(`${key}: creation transaction ${c.creationTx} is not on chain ${record.chainId}`);
+    } else {
+        const created = (receipt.contractAddress ?? "").toLowerCase();
+        if (created !== c.address.toLowerCase()) {
+            fail(
+                `${key}: creation transaction ${c.creationTx} created ${receipt.contractAddress ?? "no contract"}, ` +
+                    `record says ${c.address}`
+            );
+        }
+        if (receipt.blockNumber !== c.firstBlock) {
+            fail(
+                `${key}: creation transaction ${c.creationTx} is in block ${receipt.blockNumber}, ` +
+                    `record says firstBlock ${c.firstBlock}`
+            );
+        }
+    }
+
     const encoded = coder
         .encode(c.constructorTypes, c.constructorArgs)
         .replace(/^0x/, "");
@@ -90,7 +131,12 @@ for (const [key, c] of Object.entries(record.contracts)) {
         try {
             const raw = await provider.call({ to: c.address, data: selector });
             const [got] = coder.decode([outputType], raw);
-            if (String(got).toLowerCase() !== String(expected).toLowerCase()) {
+            // Only an address has a case-insensitive canonical form (EIP-55
+            // checksumming). Metadata strings and IPFS CIDs are case-sensitive:
+            // lowercasing both sides would let a mistyped CID — a different
+            // object entirely — pass, and it is then reused as a real URI.
+            const norm = (v) => (outputType === "address" ? String(v).toLowerCase() : String(v));
+            if (norm(got) !== norm(expected)) {
                 fail(`${key}: live ${fn}() is ${JSON.stringify(got)}, record says ${JSON.stringify(expected)}`);
             }
         } catch (e) {
@@ -123,6 +169,10 @@ for (const [key, c] of Object.entries(record.contracts)) {
         fail(`${key}: explorer OptimizationUsed is ${source.OptimizationUsed}, record says ${record.compiler.optimizer.enabled}`);
     }
 
+    if (String(source.OptimizationRuns) !== String(record.compiler.optimizer.runs)) {
+        fail(`${key}: explorer OptimizationRuns is ${source.OptimizationRuns}, record says ${record.compiler.optimizer.runs}`);
+    }
+
     const onExplorer = (source.ConstructorArguments || "").replace(/^0x/, "").toLowerCase();
     if (onExplorer !== encoded.toLowerCase()) {
         fail(
@@ -146,7 +196,7 @@ if (failures.length) {
     process.exit(1);
 }
 console.log(
-    `\nOK: deployments/vinuchain-207.json matches chain ${record.chainId} and ${record.explorer}.\n` +
+    `\nOK: ${shownRecordPath} matches chain ${record.chainId} and ${record.explorer}.\n` +
         "NOT checked here: that this repository's source compiles to the deployed bytecode — it does not, " +
         "and is not meant to. The deployed generation is older; the explorer's verification is the " +
         "source-to-bytecode proof for it."
