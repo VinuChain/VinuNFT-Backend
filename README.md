@@ -135,6 +135,11 @@ which serves `module=contract&action=getsourcecode` unauthenticated, so
 `testnet.vinuscan.com`, which does not resolve — the reason this repository
 previously recorded that no VinuChain testnet existed.
 
+The RPC hostname has since moved: the registration for `vinufoundation-rpc.com`
+lapsed on 2026-09-13 and the name now serves a registrar parking page, so the
+network now points at `https://testnet-rpc.vinuchain.org`, which fronts the same
+chain 206 node.
+
 The network entry deliberately does **not** require `DEPLOYER_PRIVATE_KEY`.
 Estimation, chain-id checks and explorer verification are reads; gating the
 whole entry on a key made the rehearsal impossible to run without funds.

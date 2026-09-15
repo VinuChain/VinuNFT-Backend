@@ -21,9 +21,11 @@ const vinuChainId = Number(process.env.VINUCHAIN_CHAIN_ID || "207");
 // serves module=contract&action=getsourcecode unauthenticated. This supersedes
 // testnet.vinuscan.com, which does not resolve — the reason this repo
 // previously recorded that no VinuChain testnet was reachable.
+// The RPC hostname has since moved: the documented one lapsed on 2026-09-13,
+// so `url` is testnet-rpc.vinuchain.org, which fronts the same chain 206 node.
 const TESTNET = {
     chainId: 206,
-    url: "https://vinufoundation-rpc.com",
+    url: "https://testnet-rpc.vinuchain.org",
     explorerApiUrl: "https://testnet.vinuexplorer.org/api",
     explorerUrl: "https://testnet.vinuexplorer.org",
 };
